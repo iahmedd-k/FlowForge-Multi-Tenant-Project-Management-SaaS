@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useBillingLimits } from '../../../hooks/useBillingLimits';
 import { createWorkspace, switchWorkspace } from '../../../api/workspace.api';
 import { setAuth } from '../../../store/authSlice';
 import { useIsMobile } from '../../../hooks/use-mobile';
@@ -182,8 +183,12 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const { user, workspace, workspaces, logout, currentRole, currentRoleLabel, canManageBilling, canAccessReports, canManageWorkspace } = useAuth();
+  const { canCreateWorkspace, getWorkspaceQuota } = useBillingLimits();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  
+  const isWorkspaceLimitReached = !canCreateWorkspace();
+  const workspaceQuota = getWorkspaceQuota();
 
   const { mutate: changeWorkspace, isPending: switchingWorkspace } = useMutation({
     mutationFn: (workspaceId) => switchWorkspace({ workspaceId }),
@@ -337,10 +342,18 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
                   <button
                     type="button"
                     onClick={() => {
-                      setShowWorkspaceMenu(false);
-                      setShowCreateWorkspace(true);
+                      if (!isWorkspaceLimitReached) {
+                        setShowWorkspaceMenu(false);
+                        setShowCreateWorkspace(true);
+                      }
                     }}
-                    className="flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] text-[#22304b] transition hover:bg-[#f5f8ff]"
+                    disabled={isWorkspaceLimitReached}
+                    title={isWorkspaceLimitReached ? `Workspace limit reached (${workspaceQuota?.used}/${workspaceQuota?.limit})` : ''}
+                    className={`flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] transition ${
+                      isWorkspaceLimitReached
+                        ? 'cursor-not-allowed text-[#ccc] opacity-50'
+                        : 'text-[#22304b] hover:bg-[#f5f8ff]'
+                    }`}
                   >
                     Create workspace
                   </button>

@@ -48,7 +48,25 @@ export function useBillingLimits() {
     return usageData.teamMembersUsed < usageData.teamMembersLimit;
   };
 
-  const getUpgradeMessage = (resourceType) => {
+  const isWorkspaceLimitReached = () => {
+    if (!usageData) return false;
+    return usageData.workspacesUsed >= usageData.workspacesLimit;
+  };
+
+  const canCreateWorkspace = () => {
+    if (!usageData) return true;
+    return usageData.workspacesUsed < usageData.workspacesLimit;
+  };
+
+  const getWorkspaceQuota = () => {
+    if (!usageData) return null;
+    return {
+      used: usageData.workspacesUsed,
+      limit: usageData.workspacesLimit,
+      remaining: Math.max(0, usageData.workspacesLimit - usageData.workspacesUsed),
+      percentage: Math.round((usageData.workspacesUsed / usageData.workspacesLimit) * 100),
+    };
+  };
     const tier = usageData?.tier || 'free';
     if (resourceType === 'teamMembers') {
       return `You've reached the maximum team members for the ${tier} plan. Upgrade to add more members.`;
@@ -65,10 +83,13 @@ export function useBillingLimits() {
     error,
     isTeamMemberLimitReached,
     isProjectLimitReached,
+    isWorkspaceLimitReached,
     getTeamMemberQuota,
     getProjectQuota,
+    getWorkspaceQuota,
     canCreateProject,
     canAddTeamMember,
+    canCreateWorkspace,
     getUpgradeMessage,
   };
 }
