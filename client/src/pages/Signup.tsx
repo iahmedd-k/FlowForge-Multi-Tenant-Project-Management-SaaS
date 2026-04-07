@@ -36,7 +36,10 @@ const Signup = () => {
 
       const { user, workspace, workspaces } = res.data.data;
       dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
-      navigate("/workspace/setup", { replace: true });
+      
+      // Skip setup page if workspace is already set up
+      const shouldSkipSetup = workspace?.setupCompleted;
+      navigate(shouldSkipSetup ? "/dashboard" : "/workspace/setup", { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Unable to create your account right now.");
     } finally {
