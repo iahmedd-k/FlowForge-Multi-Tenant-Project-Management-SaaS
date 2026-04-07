@@ -22,12 +22,12 @@ exports.createCustomer = async ({ name, email, workspaceId }) => {
 };
 
 // creates a Stripe checkout session for plan upgrade
-exports.createCheckoutSession = async ({ workspaceId, priceId, customerId }) => {
+exports.createCheckoutSession = async ({ workspaceId, priceId, customerId, tierId }) => {
   const session = await stripe.checkout.sessions.create({
     customer:   customerId,
     mode:       'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.CLIENT_URL}/billing?success=true`,
+    success_url: `${process.env.CLIENT_URL}/billing?success=true&tier=${encodeURIComponent(tierId || 'pro')}`,
     cancel_url:  `${process.env.CLIENT_URL}/billing?cancelled=true`,
     metadata:    { workspaceId: workspaceId.toString() },
   });

@@ -1,9 +1,15 @@
 const Task         = require('../models/Task');
 const Project      = require('../models/Project');
-const Notification = require('../models/notifications');
+const TimeLog = require('../models/TimeLog');
 const WorkspaceMember = require('../models/WorkspaceMember');
 const { success, error } = require('../utils/response.util');
 const { uploadBase64File } = require('../services/cloudinary.service');
+const {
+  handleCommentMention,
+  handleTaskAssigned,
+  handleTaskCreated,
+  handleTaskStatusChanged,
+} = require('../utils/automationExecutor');
 const {
   isWorkspaceManager,
   buildTaskAccessFilter,
@@ -21,10 +27,6 @@ const suggestPriority = (dueDate) => {
   if (days <= 14) return 'medium';
   return 'low';
 };
-
-// fire a notification helper
-const notify = (workspaceId, userId, type, message, link) =>
-  Notification.create({ workspaceId, userId, type, message, link }).catch(() => {});
 
 function canUpdateTask(req, task) {
   if (isWorkspaceManager(req)) return true;
@@ -171,15 +173,10 @@ exports.createTask = async (req, res) => {
     await task.populate('assignedTo', 'name email');
     await task.populate('comments.userId', 'name email');
 
-    // notify the assigned user
-    if (assignedTo && assignedTo !== req.user.userId.toString()) {
-      await notify(
-        req.workspaceId,
-        assignedTo,
-        'task_assigned',
-        `You were assigned "${title}"`,
-        `/projects/${projectId}`
-      );
+    task.workspaceName = req.workspace?.name || 'your workspace';
+    await handleTaskCreated(task).catch(() => {});
+    if (task.assignedTo) {
+      await handleTaskAssigned({ task, actorUserId: req.user.userId }).catch(() => {});
     }
 
     return success(res, { task }, 201);
@@ -203,7 +200,15 @@ exports.getTaskById = async (req, res) => {
     const project = await getAccessibleProject(req, task.projectId);
     if (!project) return error(res, 'Task not found', 404);
 
-    return success(res, { task });
+    const logs = await TimeLog.find({ taskId: task._id, workspaceId: req.workspaceId });
+    const totalTrackedSeconds = logs.reduce((sum, log) => sum + (log.duration || 0), 0);
+
+    return success(res, {
+      task: {
+        ...task.toObject(),
+        totalTrackedSeconds,
+      },
+    });
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -251,7 +256,7 @@ exports.updateTask = async (req, res) => {
     }
 
     const prevAssignee = task.assignedTo?.toString();
-    const prevStatus   = task.status;
+    const previousStatus = task.status;
 
     // apply updates
     if (title       !== undefined) task.title       = title;
@@ -280,26 +285,13 @@ exports.updateTask = async (req, res) => {
     await task.save();
     await task.populate('assignedTo', 'name email');
 
-    // notify if assignee changed
-    if (assignedTo && assignedTo !== prevAssignee) {
-      await notify(
-        req.workspaceId,
-        assignedTo,
-        'task_assigned',
-        `You were assigned "${task.title}"`,
-        `/projects/${task.projectId}`
-      );
-    }
+    task.workspaceName = req.workspace?.name || 'your workspace';
 
-    // notify assignee if status changed
-    if (status && status !== prevStatus && task.assignedTo) {
-      await notify(
-        req.workspaceId,
-        task.assignedTo._id,
-        'status_changed',
-        `"${task.title}" moved to ${status.replace('_', ' ')}`,
-        `/projects/${task.projectId}`
-      );
+    if (status !== undefined && status !== previousStatus) {
+      await handleTaskStatusChanged({ task, previousStatus, newStatus: status }).catch(() => {});
+    }
+    if (assignedTo !== undefined && String(assignedTo || '') !== String(prevAssignee || '')) {
+      await handleTaskAssigned({ task, actorUserId: req.user.userId }).catch(() => {});
     }
 
     return success(res, { task });
@@ -359,15 +351,8 @@ exports.updateStatus = async (req, res) => {
     task.status = status;
     await task.save();
 
-    // notify assignee on status change
-    if (prevStatus !== status && task.assignedTo) {
-      await notify(
-        req.workspaceId,
-        task.assignedTo,
-        'status_changed',
-        `"${task.title}" moved to ${status.replace('_', ' ')}`,
-        `/projects/${task.projectId}`
-      );
+    if (prevStatus !== status) {
+      await handleTaskStatusChanged({ task, previousStatus: prevStatus, newStatus: status }).catch(() => {});
     }
 
     return success(res, { task });
@@ -415,6 +400,12 @@ exports.addComment = async (req, res) => {
     await task.populate('comments.userId', 'name email');
 
     const newComment = task.comments[task.comments.length - 1];
+    await handleCommentMention({
+      task,
+      text: newComment.text,
+      authorUserId: req.user.userId,
+    }).catch(() => {});
+
     return success(res, { comment: newComment }, 201);
   } catch (err) {
     return error(res, err.message, 500);

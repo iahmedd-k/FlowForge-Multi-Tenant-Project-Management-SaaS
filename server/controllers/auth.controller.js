@@ -5,6 +5,7 @@ const Workspace = require('../models/Workspace');
 const WorkspaceInvite = require('../models/WorkspaceInvite');
 const WorkspaceMember = require('../models/WorkspaceMember');
 const { ensureWorkspaceAccess } = require('../services/workspace-member.service');
+const { sendPasswordResetEmail } = require('../services/email.service');
 const {
   signAccessToken,
   signRefreshToken,
@@ -15,7 +16,7 @@ const { success, error } = require('../utils/response.util');
 const cookieOpts = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
 };
 
 function normalizeInviteRole(role) {
@@ -103,8 +104,20 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const exists = await User.findOne({ email });
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) return error(res, 'Email is required', 400);
+
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists) return error(res, 'Email already registered');
+
+    // Check for pending workspace invites - user should accept invite instead
+    const pendingInvite = await WorkspaceInvite.findOne({
+      email: normalizedEmail,
+      status: 'pending',
+    });
+    if (pendingInvite) {
+      return error(res, 'You have a pending workspace invitation. Please accept it first using the invite link sent to your email.', 400);
+    }
 
     const userId = new mongoose.Types.ObjectId();
     const workspaceId = new mongoose.Types.ObjectId();
@@ -120,7 +133,7 @@ exports.register = async (req, res) => {
     const user = await User.create({
       _id: userId,
       name,
-      email,
+      email: normalizedEmail,
       passwordHash: password,
       workspaceId,
       role: 'owner',
@@ -149,7 +162,10 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) return error(res, 'Email and password are required', 400);
+
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return error(res, 'Invalid credentials', 401);
 
     const valid = await user.comparePassword(password);
@@ -375,6 +391,26 @@ exports.acceptInvite = async (req, res) => {
       return error(res, 'Email does not match the invitation', 400);
     }
 
+    // Check if workspace exists and verify billing limits
+    const workspace = await Workspace.findById(workspaceId).select('subscriptionTier members');
+    if (!workspace) {
+      return error(res, 'Workspace not found', 404);
+    }
+
+    // Check team member billing limit
+    const { isLimitExceeded, BILLING_LIMITS } = require('../utils/billingLimits');
+    const currentMemberCount = workspace.members?.length || 0;
+    const tier = workspace.subscriptionTier || 'free';
+    
+    if (isLimitExceeded(tier, 'teamMembers', currentMemberCount)) {
+      const limits = BILLING_LIMITS[tier];
+      return error(
+        res,
+        `This workspace has reached the maximum team members (${limits.teamMembers}) for the ${tier} plan. Please ask the workspace admin to upgrade.`,
+        403
+      );
+    }
+
     const invite = await WorkspaceInvite.findOne({
       token,
       workspaceId,
@@ -439,7 +475,7 @@ exports.acceptInvite = async (req, res) => {
         invitedBy: invite.invitedBy || null,
         joinedAt: new Date(),
       },
-      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true }
     );
 
     const authState = await buildAuthPayload(user, preferredWorkspaceId);
@@ -454,6 +490,95 @@ exports.acceptInvite = async (req, res) => {
     await invite.save();
 
     return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces }, 201);
+  } catch (err) {
+    console.error('[accept-invite-error]', {
+      error: err.message,
+      code: err.code,
+      errorName: err.constructor.name,
+      details: err.errmsg || err.message,
+    });
+
+    // Handle MongoDB duplicate key error specifically
+    if (err.code === 11000) {
+      return error(res, 'This user is already registered. Please log in instead.', 400);
+    }
+
+    return error(res, err.message || 'Unable to accept invitation', 500);
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) return error(res, 'Email is required', 400);
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      // Don't reveal if email exists for security
+      return success(res, { message: 'If an account with that email exists, a password reset link has been sent.' });
+    }
+
+    // Create reset token valid for 1 hour
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        email: user.email,
+        type: 'password-reset',
+      },
+      process.env.JWT_ACCESS_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    await sendPasswordResetEmail({
+      to: user.email,
+      token,
+    }).catch((err) => {
+      console.error('[forgot-password-email-error]', {
+        email: user.email,
+        userId: user._id,
+        error: err.message,
+      });
+    });
+
+    return success(res, { message: 'If an account with that email exists, a password reset link has been sent.' });
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token) return error(res, 'Reset token is required', 400);
+    if (!password || password.length < 6) {
+      return error(res, 'Password must be at least 6 characters', 400);
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    } catch {
+      return error(res, 'Password reset link is invalid or expired', 400);
+    }
+
+    if (payload.type !== 'password-reset') {
+      return error(res, 'Invalid token type', 400);
+    }
+
+    const user = await User.findById(payload.userId);
+    if (!user) return error(res, 'User not found', 404);
+
+    if (user.email !== payload.email) {
+      return error(res, 'Token does not match user email', 400);
+    }
+
+    user.passwordHash = password;
+    await user.save();
+
+    return success(res, { message: 'Password has been reset successfully' });
   } catch (err) {
     return error(res, err.message, 500);
   }

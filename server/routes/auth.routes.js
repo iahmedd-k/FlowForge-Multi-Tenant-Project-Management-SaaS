@@ -9,6 +9,8 @@ router.post('/logout',   auth.logout);
 router.get('/me',        verifyToken, auth.me);
 router.put('/profile',   verifyToken, auth.updateProfile);
 router.put('/password',  verifyToken, auth.changePassword);
+router.post('/forgot-password', auth.forgotPassword);
+router.post('/reset-password', auth.resetPassword);
 router.get('/invite/preview', auth.previewInvite);
 router.post('/invite/decline', auth.declineInvite);
 router.post('/invite/accept', auth.acceptInvite);

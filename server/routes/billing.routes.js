@@ -12,6 +12,7 @@ router.use(verifyToken, tenantScope);
 
 router.get('/plans',           ctrl.getPlans);
 router.get('/status',          ctrl.getBillingStatus);
+router.get('/usage',           ctrl.getWorkspaceUsage);
 router.post('/checkout',       checkRole('owner'), ctrl.createCheckout);
 router.post('/portal',         checkRole('owner'), ctrl.openPortal);
 

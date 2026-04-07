@@ -8,6 +8,7 @@ const workspaceSchema = new mongoose.Schema({
   subscriptionTier:     { type: String, enum: ['free', 'pro', 'business'], default: 'free' },
   stripeCustomerId:     { type: String, default: null },
   stripeSubscriptionId: { type: String, default: null },
+  slackWebhookUrl:      { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Workspace', workspaceSchema);

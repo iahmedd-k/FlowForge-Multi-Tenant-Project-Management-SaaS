@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const stripeService = require('./services/stripe.service');
 const { error } = require('./utils/response.util');
+const { startDueDateJob } = require('./jobs/dueDateAutomation.job');
+const { startProjectDeadlineJob } = require('./jobs/projectDeadlineAutomation.job');
 
 const app = express();
 
@@ -38,14 +40,18 @@ app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/billing', require('./routes/billing.routes'));
 app.use('/api/ai', require('./routes/ai.routes'));
+app.use('/api/timelogs', require('./routes/timeLog.routes'));
+app.use('/api/automations', require('./routes/automation.routes'));
+app.use('/api/integrations/slack', require('./routes/slack.routes'));
+app.use('/api/integrations/calendar', require('./routes/calendar.routes'));
 
 app.use((req, res) => error(res, 'Route not found', 404));
 
 const startServer = async () => {
   try {
     await connectDB();
-    require('./jobs/overdueCheck.job').start();
-    require('./jobs/deadlineReminder.job').start();
+    startDueDateJob();
+    startProjectDeadlineJob();
 
     app.listen(process.env.PORT, () => {
       console.log(`Server running on port ${process.env.PORT}`);

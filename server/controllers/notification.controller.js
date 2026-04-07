@@ -41,7 +41,7 @@ exports.markOneRead = async (req, res) => {
         workspaceId: req.workspaceId,
       },
       { read: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!notif) return error(res, 'Notification not found', 404);

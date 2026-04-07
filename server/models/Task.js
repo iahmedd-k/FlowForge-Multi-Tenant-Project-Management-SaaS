@@ -44,9 +44,12 @@ const taskSchema = new mongoose.Schema({
     index: true,
   },
   dueDate:     { type: Date, default: null, index: true },
+  completedAt: { type: Date, default: null },
+  overdueMarkedAt: { type: Date, default: null },
   tags:        [{ type: String, trim: true }],
   attachments: [attachmentSchema],
   comments:    [commentSchema],
+  totalTrackedSeconds: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // text index on title — powers the AI suggestion search

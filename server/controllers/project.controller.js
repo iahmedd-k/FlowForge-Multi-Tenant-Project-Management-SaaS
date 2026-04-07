@@ -108,7 +108,7 @@ exports.updateProject = async (req, res) => {
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, workspaceId: req.workspaceId },
       { name, description, deadline, status },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('members', 'name email role');
 
     if (!project) return error(res, 'Project not found', 404);

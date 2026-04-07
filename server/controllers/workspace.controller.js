@@ -20,7 +20,7 @@ const {
 const cookieOpts = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
 };
 
 function normalizeManagedRole(role, actorRole) {
@@ -37,12 +37,93 @@ function normalizeManagedRole(role, actorRole) {
   return null;
 }
 
+function isEmailTransportError(err) {
+  const message = String(err?.message || '');
+  const code = String(err?.code || '');
+  return Boolean(
+    err?.responseCode ||
+    err?.code === 'EAUTH' ||
+    /^(Invalid login|BadCredentials|Username and Password not accepted|EAUTH)/.test(message)
+  );
+}
+
 // GET /api/workspace
 exports.getWorkspace = async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.workspaceId);
     if (!workspace) return error(res, 'Workspace not found', 404);
     return success(res, { workspace });
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+
+// POST /api/workspace/create
+exports.createWorkspace = async (req, res) => {
+  try {
+    const rawName = req.body?.name;
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+
+    if (!name) return error(res, 'Workspace name is required', 400);
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return error(res, 'User not found', 404);
+
+    // Check workspace limit for user's current plan (free = 1 workspace)
+    const userWorkspaceCount = await Workspace.countDocuments({ ownerId: user._id });
+    const WORKSPACE_LIMITS = { free: 1, pro: 3, business: 999 };
+    const userLimit = WORKSPACE_LIMITS['free']; // New workspaces start on free plan
+    
+    if (userWorkspaceCount >= userLimit) {
+      return error(
+        res,
+        `You have reached the maximum workspaces limit (${userLimit}) for the free plan. Please upgrade to create more workspaces.`,
+        403
+      );
+    }
+
+    const workspace = await Workspace.create({
+      name,
+      description: '',
+      setupCompleted: false,
+      ownerId: user._id,
+    });
+
+    await WorkspaceMember.create({
+      workspaceId: workspace._id,
+      userId: user._id,
+      role: 'owner',
+    });
+
+    user.workspaceId = workspace._id;
+    user.role = 'owner';
+    await user.save();
+
+    const { workspaces } = await ensureWorkspaceAccess(user._id, workspace._id);
+    const payload = {
+      userId: user._id,
+      workspaceId: workspace._id,
+      role: 'owner',
+    };
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+
+    res.cookie('accessToken', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    return success(res, {
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        workspaceId: workspace._id,
+        role: 'owner',
+        createdAt: user.createdAt,
+      },
+      workspace,
+      workspaces,
+      message: 'Workspace created.',
+    }, 201);
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -87,9 +168,12 @@ exports.inviteUser = async (req, res) => {
     const actorRole = getActiveRole(req);
     const normalizedRole = normalizeManagedRole(role, actorRole);
 
+    console.log('[invite-step-1] Validation:', { email: normalizedEmail, role: normalizedRole, actorRole });
+
     if (!normalizedEmail) return error(res, 'Email is required');
     if (!normalizedRole) return error(res, 'You cannot invite users with that role', 403);
 
+    console.log('[invite-step-2] Checking existing users...');
     const existingUser = await User.findOne({ email: normalizedEmail }).select('_id');
     if (existingUser) {
       const existingMembership = await WorkspaceMember.findOne({
@@ -99,16 +183,23 @@ exports.inviteUser = async (req, res) => {
       if (existingMembership) return error(res, 'User already in workspace');
     }
 
-    const workspace = await Workspace.findById(req.workspaceId);
-    const inviter = await User.findById(req.user.userId);
+    console.log('[invite-step-3] Fetching workspace and inviter...');
+    const workspace = await Workspace.findById(req.workspaceId).select('name');
+    if (!workspace) return error(res, 'Workspace not found', 404);
+    
+    const inviter = await User.findById(req.user.userId).select('name email');
+    if (!inviter) return error(res, 'Inviter not found', 404);
+
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
+    console.log('[invite-step-4] Creating invite token...');
     const token = jwt.sign(
       { email: normalizedEmail, workspaceId: req.workspaceId, role: normalizedRole },
       process.env.INVITE_TOKEN_SECRET,
       { expiresIn: '48h' }
     );
 
+    console.log('[invite-step-5] Saving invite to database...');
     const invite = await WorkspaceInvite.findOneAndUpdate(
       { workspaceId: req.workspaceId, email: normalizedEmail, status: 'pending' },
       {
@@ -123,13 +214,14 @@ exports.inviteUser = async (req, res) => {
         acceptedAt: null,
       },
       {
-        new: true,
+        returnDocument: 'after',
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,
       }
     ).populate('invitedBy', 'name email role');
 
+    console.log('[invite-step-6] Sending email...');
     await sendInviteEmail({
       to: normalizedEmail,
       inviterName: inviter.name,
@@ -138,9 +230,24 @@ exports.inviteUser = async (req, res) => {
       boardName: `${workspace.name} dashboard`,
     });
 
+    console.log('[invite-step-7] Success!');
     return success(res, { message: `Invite sent to ${normalizedEmail}`, invite });
   } catch (err) {
-    return error(res, err.message, 500);
+    console.error('[invite-endpoint-error]', {
+      email: req.body?.email,
+      workspaceId: req.workspaceId,
+      errorMessage: err.message,
+      errorCode: err.code,
+      errorName: err.constructor.name,
+      errorStack: err.stack?.split('\n').slice(0, 3).join(' | '),
+    });
+    
+    if (isEmailTransportError(err)) {
+      return error(res, 'Email configuration error: Unable to send invitations. Please contact support.', 502);
+    }
+    
+    // Return the actual error message for debugging
+    return error(res, `Failed to send invite: ${err.message}`, 500);
   }
 };
 

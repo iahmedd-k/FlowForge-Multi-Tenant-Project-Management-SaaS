@@ -11,7 +11,7 @@ const { ensureWorkspaceAccess } = require('../services/workspace-member.service'
 const cookieOpts = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
 };
 
 module.exports = async (req, res, next) => {

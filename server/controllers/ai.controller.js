@@ -13,6 +13,8 @@ exports.askAssistant = async (req, res) => {
       prompt: String(prompt).trim(),
       history,
       context,
+      workspaceId: req.workspaceId,
+      userId: req.user?.userId || req.user?._id,
       workspaceRole: req.workspaceRole || req.user?.role,
       userName: userName || req.user?.name,
     });
