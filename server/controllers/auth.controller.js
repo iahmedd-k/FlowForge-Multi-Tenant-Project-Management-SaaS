@@ -16,7 +16,7 @@ const { success, error } = require('../utils/response.util');
 const cookieOpts = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
 };
 
 function normalizeInviteRole(role) {
