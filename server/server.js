@@ -29,10 +29,25 @@ app.post(
 
 app.use(helmet());
 app.use(cors({
-  origin: '*',
-  credentials: false,
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:5173',     // Vite dev server
+      'http://localhost:3000',     // Alternative dev port
+      'https://flowforge-git-main-ahmed-khans-projects-56556017.vercel.app',  // Your Vercel frontend
+      process.env.CLIENT_URL,      // From .env
+    ];
+    
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
