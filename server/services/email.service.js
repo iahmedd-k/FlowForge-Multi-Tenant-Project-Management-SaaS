@@ -110,6 +110,13 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
       code: err.code,
       responseCode: err.responseCode,
     });
+    
+    // In production, if SMTP fails, log the invite link instead of throwing
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[invite-link-fallback]', { to, inviteLink: link, workspaceName, inviterName });
+      return { fallback: true, to, link };
+    }
+    
     throw err;
   }
 };
@@ -144,6 +151,13 @@ const sendPasswordResetEmail = async ({ to, token }) => {
       code: err.code,
       responseCode: err.responseCode,
     });
+    
+    // In production, if SMTP fails, log the reset link instead of throwing
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[password-reset-link-fallback]', { to, resetLink: link });
+      return { fallback: true, to, link };
+    }
+    
     throw err;
   }
 };
