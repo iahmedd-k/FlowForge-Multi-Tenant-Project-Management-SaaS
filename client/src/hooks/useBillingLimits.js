@@ -67,6 +67,8 @@ export function useBillingLimits() {
       percentage: Math.round((usageData.workspacesUsed / usageData.workspacesLimit) * 100),
     };
   };
+
+  const getUpgradeMessage = (resourceType) => {
     const tier = usageData?.tier || 'free';
     if (resourceType === 'teamMembers') {
       return `You've reached the maximum team members for the ${tier} plan. Upgrade to add more members.`;
