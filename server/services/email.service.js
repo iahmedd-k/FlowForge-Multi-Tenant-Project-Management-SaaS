@@ -1,18 +1,6 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    })
-  : nodemailer.createTransport({
-      jsonTransport: true,
-    });
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function buildClientUrl(pathname = '') {
   const rawBase = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -79,11 +67,10 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
   const link = buildClientLink('/invite/setup', token);
   
   try {
-    const info = await transporter.sendMail({
-      from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
+    const result = await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
       to,
       subject: `You've been invited to ${workspaceName} on FlowForge`,
-      text: `${inviterName} has invited you to join ${workspaceName} on FlowForge.\n\nYou will have access to ${boardName} after you accept the invitation.\n\nAccept invitation: ${link}\n\nThis invitation link expires in 48 hours.`,
       html: renderEmailLayout({
         eyebrow: 'Workspace invitation',
         title: `Join ${workspaceName} on FlowForge`,
@@ -98,20 +85,19 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
       }),
     });
 
-    if (info?.message) {
-      console.log('[invite-email-success]', { to, messageId: info.messageId });
+    if (result?.id) {
+      console.log('[invite-email-success]', { to, messageId: result.id });
     }
 
-    return info;
+    return result;
   } catch (err) {
     console.error('[invite-email-error]', {
       to,
       error: err.message,
       code: err.code,
-      responseCode: err.responseCode,
     });
     
-    // In production, if SMTP fails, log the invite link instead of throwing
+    // In production, log the invite link as fallback
     if (process.env.NODE_ENV === 'production') {
       console.log('[invite-link-fallback]', { to, inviteLink: link, workspaceName, inviterName });
       return { fallback: true, to, link };
@@ -125,11 +111,10 @@ const sendPasswordResetEmail = async ({ to, token }) => {
   const link = buildClientLink('/reset-password', token);
   
   try {
-    await transporter.sendMail({
-      from:    `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
+    const result = await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
       to,
       subject: 'Reset your FlowForge password',
-      text: `We received a request to reset your FlowForge password.\n\nReset your password: ${link}\n\nThis password reset link expires in 1 hour. If you did not request a reset, you can ignore this email.`,
       html: renderEmailLayout({
         eyebrow: 'Account security',
         title: 'Reset your password',
@@ -143,16 +128,17 @@ const sendPasswordResetEmail = async ({ to, token }) => {
         footer: 'This password reset link expires in 1 hour.',
       }),
     });
+    
     console.log('[password-reset-email-success]', { to });
+    return result;
   } catch (err) {
     console.error('[password-reset-email-error]', {
       to,
       error: err.message,
       code: err.code,
-      responseCode: err.responseCode,
     });
     
-    // In production, if SMTP fails, log the reset link instead of throwing
+    // In production, log the reset link as fallback
     if (process.env.NODE_ENV === 'production') {
       console.log('[password-reset-link-fallback]', { to, resetLink: link });
       return { fallback: true, to, link };
@@ -177,26 +163,29 @@ const sendTaskAssignmentEmail = async ({ to, recipientName, taskTitle, projectNa
     ? `Due: ${new Date(dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     : null;
 
-  return transporter.sendMail({
-    from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
-    to,
-    subject: `${priorityEmoji} New assignment: ${taskTitle}`,
-    text: `Hi ${recipientName || 'there'},\n\nYou were assigned "${taskTitle}" in ${projectName || 'a project'} (${workspaceName}).\n\nPriority: ${priority}\n${dueDateText ? `${dueDateText}\n` : ''}Open task: ${link}`,
-    html: renderEmailLayout({
-      eyebrow: `${priorityEmoji} Task assignment`,
-      title: `You were assigned "${taskTitle}"`,
-      intro: `${recipientName || 'Hi there'}, you've been assigned a task in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
-      bodyLines: [
-        `<strong>Priority:</strong> ${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)}`,
-        ...(dueDateText ? [`<strong>Due Date:</strong> ${dueDateText}`] : []),
-        `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
-        'Click the button below to open the task and review all details, comments, and attachments.',
-      ],
-      ctaLabel: 'View task →',
-      ctaHref: link,
-      footer: 'You are receiving this because task assignment notifications are enabled for your account.',
-    }),
-  });
+  try {
+    return await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
+      to,
+      subject: `${priorityEmoji} New assignment: ${taskTitle}`,
+      html: renderEmailLayout({
+        eyebrow: `${priorityEmoji} Task assignment`,
+        title: `You were assigned "${taskTitle}"`,
+        intro: `${recipientName || 'Hi there'}, you've been assigned a task in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
+        bodyLines: [
+          `<strong>Priority:</strong> ${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)}`,
+          ...(dueDateText ? [`<strong>Due Date:</strong> ${dueDateText}`] : []),
+          `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
+          'Click the button below to open the task and review all details, comments, and attachments.',
+        ],
+        ctaLabel: 'View task →',
+        ctaHref: link,
+        footer: 'You are receiving this because task assignment notifications are enabled for your account.',
+      }),
+    });
+  } catch (err) {
+    console.error('[task-assignment-email-error]', { to, error: err.message });
+  }
 };
 
 const sendTaskStatusChangeEmail = async ({ to, recipientName, taskTitle, projectName, newStatus, workspaceName = 'your workspace', projectPath = '/dashboard' }) => {
@@ -210,25 +199,28 @@ const sendTaskStatusChangeEmail = async ({ to, recipientName, taskTitle, project
     done: '✅',
   }[newStatus] || '📋';
 
-  return transporter.sendMail({
-    from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
-    to,
-    subject: `${statusEmoji} Task status updated: ${taskTitle}`,
-    text: `Hi ${recipientName || 'there'},\n\nTask "${taskTitle}" status changed to ${newStatus.replace(/_/g, ' ')}.\n\nProject: ${projectName || 'a project'}\n\nOpen task: ${link}`,
-    html: renderEmailLayout({
-      eyebrow: `${statusEmoji} Status update`,
-      title: `Task "${taskTitle}" moved to ${newStatus.replace(/_/g, ' ')}`,
-      intro: `A task you're involved with has been updated in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
-      bodyLines: [
-        `<strong>New Status:</strong> ${statusEmoji} ${newStatus.replace(/_/g, ' ').charAt(0).toUpperCase() + newStatus.replace(/_/g, ' ').slice(1)}`,
-        `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
-        'Check the task for any new comments or attachments.',
-      ],
-      ctaLabel: 'View task →',
-      ctaHref: link,
-      footer: 'You are receiving this because you are participating in this task or project.',
-    }),
-  });
+  try {
+    return await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
+      to,
+      subject: `${statusEmoji} Task status updated: ${taskTitle}`,
+      html: renderEmailLayout({
+        eyebrow: `${statusEmoji} Status update`,
+        title: `Task "${taskTitle}" moved to ${newStatus.replace(/_/g, ' ')}`,
+        intro: `A task you're involved with has been updated in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
+        bodyLines: [
+          `<strong>New Status:</strong> ${statusEmoji} ${newStatus.replace(/_/g, ' ').charAt(0).toUpperCase() + newStatus.replace(/_/g, ' ').slice(1)}`,
+          `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
+          'Check the task for any new comments or attachments.',
+        ],
+        ctaLabel: 'View task →',
+        ctaHref: link,
+        footer: 'You are receiving this because you are participating in this task or project.',
+      }),
+    });
+  } catch (err) {
+    console.error('[task-status-change-email-error]', { to, error: err.message });
+  }
 };
 
 const sendPriorityAlertEmail = async ({ to, recipientName, taskTitle, projectName, priority, workspaceName = 'your workspace', projectPath = '/dashboard' }) => {
@@ -240,26 +232,29 @@ const sendPriorityAlertEmail = async ({ to, recipientName, taskTitle, projectNam
     urgent: '🔴',
   }[priority] || '🟠';
 
-  return transporter.sendMail({
-    from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
-    to,
-    subject: `${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)} priority task: ${taskTitle}`,
-    text: `Hi ${recipientName || 'there'},\n\nA ${priority} priority task has been created: "${taskTitle}"\n\nProject: ${projectName || 'a project'}\nWorkspace: ${workspaceName}\n\nOpen task: ${link}`,
-    html: renderEmailLayout({
-      eyebrow: `${priorityEmoji} Priority alert`,
-      title: `${priority.toUpperCase()} priority task created`,
-      intro: `A ${priority} priority task has been created in <strong>${escapeHtml(projectName || 'a project')}</strong> that requires immediate attention.`,
-      bodyLines: [
-        `<strong>Task:</strong> "${escapeHtml(taskTitle)}"`,
-        `<strong>Priority:</strong> ${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)}`,
-        `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
-        'Please review and take action as needed.',
-      ],
-      ctaLabel: 'Review task →',
-      ctaHref: link,
-      footer: 'You are receiving this because you are an admin or project lead in this workspace.',
-    }),
-  });
+  try {
+    return await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
+      to,
+      subject: `${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)} priority task: ${taskTitle}`,
+      html: renderEmailLayout({
+        eyebrow: `${priorityEmoji} Priority alert`,
+        title: `${priority.toUpperCase()} priority task created`,
+        intro: `A ${priority} priority task has been created in <strong>${escapeHtml(projectName || 'a project')}</strong> that requires immediate attention.`,
+        bodyLines: [
+          `<strong>Task:</strong> "${escapeHtml(taskTitle)}"`,
+          `<strong>Priority:</strong> ${priorityEmoji} ${priority.charAt(0).toUpperCase() + priority.slice(1)}`,
+          `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
+          'Please review and take action as needed.',
+        ],
+        ctaLabel: 'Review task →',
+        ctaHref: link,
+        footer: 'You are receiving this because you are an admin or project lead in this workspace.',
+      }),
+    });
+  } catch (err) {
+    console.error('[priority-alert-email-error]', { to, error: err.message });
+  }
 };
 
 const sendDueDateReminderEmail = async ({ to, recipientName, taskTitle, projectName, workspaceName = 'your workspace', hoursUntilDue, projectPath = '/dashboard' }) => {
@@ -268,26 +263,29 @@ const sendDueDateReminderEmail = async ({ to, recipientName, taskTitle, projectN
   const link = buildClientUrl(projectPath);
   const urgency = hoursUntilDue < 6 ? 'very soon' : hoursUntilDue < 12 ? 'soon' : 'in the next 24 hours';
 
-  return transporter.sendMail({
-    from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
-    to,
-    subject: `⏰ Reminder: "${taskTitle}" is due ${urgency}`,
-    text: `Hi ${recipientName || 'there'},\n\nReminder: "${taskTitle}" is due ${urgency}.\n\nProject: ${projectName || 'a project'}\n\nOpen task: ${link}`,
-    html: renderEmailLayout({
-      eyebrow: '⏰ Due date reminder',
-      title: `"${taskTitle}" is due ${urgency}`,
-      intro: `A task you're assigned to is coming up soon in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
-      bodyLines: [
-        `<strong>Task:</strong> "${escapeHtml(taskTitle)}"`,
-        `<strong>Due in:</strong> Approximately ${hoursUntilDue} hours`,
-        `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
-        'Make sure to complete or update the task status before the deadline.',
-      ],
-      ctaLabel: 'Update task →',
-      ctaHref: link,
-      footer: 'You are receiving this reminder because you are assigned to this task.',
-    }),
-  });
+  try {
+    return await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
+      to,
+      subject: `⏰ Reminder: "${taskTitle}" is due ${urgency}`,
+      html: renderEmailLayout({
+        eyebrow: '⏰ Due date reminder',
+        title: `"${taskTitle}" is due ${urgency}`,
+        intro: `A task you're assigned to is coming up soon in <strong>${escapeHtml(projectName || 'a project')}</strong>.`,
+        bodyLines: [
+          `<strong>Task:</strong> "${escapeHtml(taskTitle)}"`,
+          `<strong>Due in:</strong> Approximately ${hoursUntilDue} hours`,
+          `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
+          'Make sure to complete or update the task status before the deadline.',
+        ],
+        ctaLabel: 'Update task →',
+        ctaHref: link,
+        footer: 'You are receiving this reminder because you are assigned to this task.',
+      }),
+    });
+  } catch (err) {
+    console.error('[due-date-reminder-email-error]', { to, error: err.message });
+  }
 };
 
 const sendCommentMentionEmail = async ({ to, recipientName, mentionerName, taskTitle, projectName, workspaceName = 'your workspace', comment, projectPath = '/dashboard' }) => {
@@ -296,25 +294,28 @@ const sendCommentMentionEmail = async ({ to, recipientName, mentionerName, taskT
   const link = buildClientUrl(projectPath);
   const commentPreview = comment.substring(0, 150) + (comment.length > 150 ? '...' : '');
 
-  return transporter.sendMail({
-    from: `"FlowForge" <${process.env.SMTP_USER || 'no-reply@flowforge.local'}>`,
-    to,
-    subject: `@${mentionerName} mentioned you in "${taskTitle}"`,
-    text: `Hi ${recipientName || 'there'},\n\n${mentionerName} mentioned you in a comment on "${taskTitle}".\n\nComment: ${commentPreview}\n\nProject: ${projectName}\nWorkspace: ${workspaceName}\n\nOpen task: ${link}`,
-    html: renderEmailLayout({
-      eyebrow: '💬 Comment mention',
-      title: `${mentionerName} mentioned you`,
-      intro: `<strong>${escapeHtml(mentionerName)}</strong> mentioned you in a comment on task <strong>"${escapeHtml(taskTitle)}"</strong>.`,
-      bodyLines: [
-        `<strong>Comment preview:</strong><br/><em>"${escapeHtml(commentPreview)}"</em>`,
-        `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
-        'Reply directly in the task to continue the conversation.',
-      ],
-      ctaLabel: 'View comment →',
-      ctaHref: link,
-      footer: 'You are receiving this because you were mentioned in a comment.',
-    }),
-  });
+  try {
+    return await resend.emails.send({
+      from: 'FlowForge <onboarding@resend.dev>',
+      to,
+      subject: `💬 ${mentionerName} mentioned you in "${taskTitle}"`,
+      html: renderEmailLayout({
+        eyebrow: '💬 New mention',
+        title: `You were mentioned by ${mentionerName}`,
+        intro: `${mentionerName} mentioned you in a comment on <strong>"${escapeHtml(taskTitle)}"</strong>.`,
+        bodyLines: [
+          `<strong>Project:</strong> ${escapeHtml(projectName || 'Unnamed project')} in ${escapeHtml(workspaceName)}`,
+          `<strong>Comment preview:</strong> "${escapeHtml(commentPreview)}"`,
+          'Click below to view the full comment and task details.',
+        ],
+        ctaLabel: 'View comment →',
+        ctaHref: link,
+        footer: 'You are receiving this because you were mentioned in a comment.',
+      }),
+    });
+  } catch (err) {
+    console.error('[comment-mention-email-error]', { to, error: err.message });
+  }
 };
 
 module.exports = { 
