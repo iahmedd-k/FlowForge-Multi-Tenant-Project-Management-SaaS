@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
@@ -18,6 +18,14 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Redirect to dashboard if token exists
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -25,7 +33,12 @@ const Login = () => {
 
     try {
       const res = await loginApi({ email: email.trim(), password });
-      const { user, workspace, workspaces } = res.data.data;
+      const { user, workspace, workspaces, accessToken } = res.data.data;
+
+      // Store token for API requests
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
 
       dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
 
