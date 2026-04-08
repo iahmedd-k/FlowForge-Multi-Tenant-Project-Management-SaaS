@@ -149,10 +149,7 @@ exports.register = async (req, res) => {
     const accessToken = signAccessToken(authState.tokenPayload);
     const refreshToken = signRefreshToken(authState.tokenPayload);
 
-    res.cookie('accessToken', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-    return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces }, 201);
+    return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces, accessToken, refreshToken }, 201);
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -177,10 +174,7 @@ exports.login = async (req, res) => {
     const accessToken = signAccessToken(authState.tokenPayload);
     const refreshToken = signRefreshToken(authState.tokenPayload);
 
-    res.cookie('accessToken', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-    return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces });
+    return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces, accessToken, refreshToken });
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -188,30 +182,16 @@ exports.login = async (req, res) => {
 
 exports.refresh = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken;
-    if (!token) return error(res, 'No refresh token', 401);
-
-    const payload = verifyRefreshToken(token);
-    const user = await User.findById(payload.userId);
-    if (!user) return error(res, 'User not found', 404);
-
-    const authState = await buildAuthPayload(user, payload.workspaceId);
-    if (!authState.tokenPayload) return error(res, 'No workspace access found for this account', 403);
-
-    const accessToken = signAccessToken(authState.tokenPayload);
-    const refreshToken = signRefreshToken(authState.tokenPayload);
-
-    res.cookie('accessToken', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 });
-    return success(res, { message: 'Token refreshed' });
+    // With token-based auth (no cookies), refresh is handled by client storing the accessToken
+    // This endpoint is deprecated but kept for backwards compatibility
+    return success(res, { message: 'Token refresh not required with header-based auth' });
   } catch {
-    return error(res, 'Invalid refresh token', 401);
+    return error(res, 'Refresh failed', 401);
   }
 };
 
 exports.logout = (req, res) => {
-  res.clearCookie('accessToken', cookieOpts);
-  res.clearCookie('refreshToken', cookieOpts);
+  // With token-based auth, logout is handled by client deleting the token from storage
   return success(res, { message: 'Logged out' });
 };
 
