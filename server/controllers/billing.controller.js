@@ -80,17 +80,17 @@ exports.getBillingStatus = async (req, res) => {
 exports.getWorkspaceUsage = async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.workspaceId)
-      .populate({
-        path: 'members',
-        select: '_id',
-      });
+      .select('subscriptionTier ownerId name');
     if (!workspace) return error(res, 'Workspace not found', 404);
 
     const currentPlan = PLANS.find((p) => p.id === workspace.subscriptionTier);
     const limits = currentPlan?.limits || PLANS[0].limits;
 
-    // Count team members
-    const teamMembersUsed = workspace.members?.length || 0;
+    // Count team members using WorkspaceMember model
+    const WorkspaceMember = require('../models/WorkspaceMember');
+    const teamMembersUsed = await WorkspaceMember.countDocuments({
+      workspaceId: req.workspaceId,
+    });
 
     // Count projects
     const projectsUsed = await Project.countDocuments({
