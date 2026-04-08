@@ -166,25 +166,33 @@ const AppInitializer = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useSelector((state: any) => state.auth);
 
   useEffect(() => {
-    // Only initialize if we haven't already loaded
-    if (loading && !user) {
+    // Initialize auth only once when component mounts (check if we have a token but no user in Redux)
+    const hasToken = localStorage.getItem('accessToken');
+    const shouldInitialize = hasToken && !user && loading;
+
+    if (shouldInitialize) {
       const initializeAuth = async () => {
         try {
           const response = await getMeApi();
-          if (response.data?.data) {
+          if (response.data?.data && response.data.data.user) {
             dispatch(setAuth(response.data.data));
           } else {
+            localStorage.removeItem('accessToken');
             dispatch(clearAuth());
           }
         } catch (error) {
           // Token is invalid or expired, clear auth
+          localStorage.removeItem('accessToken');
           dispatch(clearAuth());
         }
       };
 
       initializeAuth();
+    } else if (!hasToken && loading) {
+      // No token, clear auth state
+      dispatch(clearAuth());
     }
-  }, [dispatch, loading, user]);
+  }, []); // Empty dependency - runs only once on mount
 
   return <>{children}</>;
 };

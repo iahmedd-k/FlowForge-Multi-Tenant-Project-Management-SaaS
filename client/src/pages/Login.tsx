@@ -18,13 +18,13 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Redirect to dashboard if token exists
+  // Redirect to dashboard if token exists (check only once on mount)
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       navigate('/dashboard', { replace: true });
     }
-  }, [navigate]);
+  }, []); // Empty deps - runs only on mount
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
