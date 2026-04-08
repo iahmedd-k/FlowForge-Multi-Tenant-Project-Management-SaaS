@@ -40,7 +40,8 @@ export const useAuth = () => {
       // clear client auth state even if the logout request fails
     }
     dispatch(clearAuth());
-    navigate('/login');
+    localStorage.removeItem('accessToken');
+    navigate('/', { replace: true });
   };
 
   return {

@@ -221,13 +221,16 @@ exports.inviteUser = async (req, res) => {
       }
     ).populate('invitedBy', 'name email role');
 
-    console.log('[invite-step-6] Sending email...');
-    await sendInviteEmail({
+    console.log('[invite-step-6] Queuing email (non-blocking)...');
+    // Send email asynchronously without blocking the response
+    sendInviteEmail({
       to: normalizedEmail,
       inviterName: inviter.name,
       workspaceName: workspace.name,
       token,
       boardName: `${workspace.name} dashboard`,
+    }).catch((emailErr) => {
+      console.error('[email-send-failed]', emailErr.message);
     });
 
     console.log('[invite-step-7] Success!');

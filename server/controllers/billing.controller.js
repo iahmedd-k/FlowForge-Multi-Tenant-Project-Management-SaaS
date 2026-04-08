@@ -1,6 +1,7 @@
 const stripeService = require('../services/stripe.service');
 const Workspace     = require('../models/Workspace');
 const Project       = require('../models/Project');
+const WorkspaceMember = require('../models/WorkspaceMember');
 const { success, error } = require('../utils/response.util');
 
 const PLANS = [
@@ -79,6 +80,10 @@ exports.getBillingStatus = async (req, res) => {
 // GET /api/billing/usage   — calculate current workspace usage
 exports.getWorkspaceUsage = async (req, res) => {
   try {
+    if (!req.workspaceId || !req.user) {
+      return error(res, 'Missing workspace or user context', 400);
+    }
+
     const workspace = await Workspace.findById(req.workspaceId)
       .select('subscriptionTier ownerId name');
     if (!workspace) return error(res, 'Workspace not found', 404);
@@ -87,7 +92,6 @@ exports.getWorkspaceUsage = async (req, res) => {
     const limits = currentPlan?.limits || PLANS[0].limits;
 
     // Count team members using WorkspaceMember model
-    const WorkspaceMember = require('../models/WorkspaceMember');
     const teamMembersUsed = await WorkspaceMember.countDocuments({
       workspaceId: req.workspaceId,
     });
@@ -116,6 +120,7 @@ exports.getWorkspaceUsage = async (req, res) => {
       tier: workspace.subscriptionTier,
     });
   } catch (err) {
+    console.error('[billing/usage error]', err);
     return error(res, err.message, 500);
   }
 };

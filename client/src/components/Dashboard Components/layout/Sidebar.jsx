@@ -384,9 +384,9 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
         <div className="mt-auto px-1 pt-6">
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (isMobile) onCloseMobile?.();
-              logout();
+              await logout();
             }}
             className="w-full rounded-[10px] border border-[#d9e1f0] bg-[#f8faff] px-3 py-2 text-[12px] font-medium text-[#44546c] transition hover:bg-white hover:text-[#2f3f64]"
           >

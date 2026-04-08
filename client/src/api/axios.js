@@ -8,8 +8,13 @@ const api = axios.create({
   withCredentials: false, // No cookies, using Bearer tokens only
 });
 
-// Add token to every request
+// Add request interceptor to increase timeout for slow endpoints
 api.interceptors.request.use((config) => {
+  // Increase timeout for email/invite operations
+  if (config.url?.includes('/invite') || config.url?.includes('/password')) {
+    config.timeout = 30000; // 30 seconds for email operations
+  }
+  
   const token = localStorage.getItem('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
