@@ -1,6 +1,11 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const apiKey = process.env.RESEND_API_KEY;
+if (!apiKey) {
+  console.warn('[WARNING] RESEND_API_KEY not found in environment variables');
+}
+
+const resend = new Resend(apiKey);
 
 function buildClientUrl(pathname = '') {
   const rawBase = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -67,6 +72,8 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
   const link = buildClientLink('/invite/setup', token);
   
   try {
+    console.log('[resend-send] Attempting to send invite email via Resend', { to, workspaceName });
+    
     const result = await resend.emails.send({
       from: 'FlowForge <onboarding@resend.dev>',
       to,
@@ -85,8 +92,16 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
       }),
     });
 
+    console.log('[resend-response]', { to, result });
+
     if (result?.id) {
       console.log('[invite-email-success]', { to, messageId: result.id });
+      return result;
+    }
+    
+    if (result?.error) {
+      console.error('[resend-error]', { to, error: result.error });
+      throw new Error(result.error?.message || 'Resend API error');
     }
 
     return result;
@@ -95,6 +110,7 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
       to,
       error: err.message,
       code: err.code,
+      fullError: err,
     });
     
     // In production, log the invite link as fallback
@@ -111,6 +127,8 @@ const sendPasswordResetEmail = async ({ to, token }) => {
   const link = buildClientLink('/reset-password', token);
   
   try {
+    console.log('[resend-send] Attempting to send password reset email via Resend', { to });
+    
     const result = await resend.emails.send({
       from: 'FlowForge <onboarding@resend.dev>',
       to,
@@ -128,6 +146,13 @@ const sendPasswordResetEmail = async ({ to, token }) => {
         footer: 'This password reset link expires in 1 hour.',
       }),
     });
+
+    console.log('[resend-response]', { to, result });
+    
+    if (result?.error) {
+      console.error('[resend-error]', { to, error: result.error });
+      throw new Error(result.error?.message || 'Resend API error');
+    }
     
     console.log('[password-reset-email-success]', { to });
     return result;
