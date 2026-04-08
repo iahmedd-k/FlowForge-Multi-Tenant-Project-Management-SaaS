@@ -38,6 +38,8 @@ const Login = () => {
       // Store token for API requests
       if (accessToken) {
         localStorage.setItem('accessToken', accessToken);
+      } else {
+        throw new Error('No access token received from server');
       }
 
       dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
@@ -45,6 +47,8 @@ const Login = () => {
       const shouldSetup = user?.role === "owner" && workspace && !workspace.setupCompleted;
       navigate(shouldSetup ? "/workspace/setup" : "/dashboard", { replace: true });
     } catch (err: any) {
+      // Clear token on error to prevent redirect loop
+      localStorage.removeItem('accessToken');
       setError(err?.response?.data?.message || "Unable to log in right now.");
     } finally {
       setLoading(false);
