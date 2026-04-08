@@ -1,9 +1,11 @@
 import axios from 'axios';
 
+// Axios API instance with Bearer token authentication
+// CORS configured for Vercel ↔ Render communication (wildcard + no credentials)
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 15000,
-  withCredentials: false, // No cookies, using Bearer tokens instead
+  withCredentials: false, // No cookies, using Bearer tokens only
 });
 
 // Add token to every request
