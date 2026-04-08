@@ -134,6 +134,30 @@ const RequireManager = () => {
   return <Outlet />;
 };
 
+const RequireInitialSetup = () => {
+  const authState = useSelector((state: any) => state.auth);
+  const { user, workspace, loading } = authState;
+  const location = useLocation();
+  const currentRole = getActiveRole(authState);
+  const isDuringSetup = Boolean(
+    user &&
+    workspace &&
+    currentRole === "owner" &&
+    !workspace.setupCompleted
+  );
+
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+
+  // Only allow access to team-invite during initial setup
+  if (!isDuringSetup && location.pathname === "/workspace/team-invite") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+};
+
 const RequireWorkspaceSetup = () => {
   const authState = useSelector((state: any) => state.auth);
   const { user, workspace, loading } = authState;
@@ -272,8 +296,10 @@ const App = () => (
                   <Route path="/workspace/setup" element={<ProjectSetup />} />
                 </Route>
               </Route>
-              <Route element={<RequireManager />}>
-                <Route path="/workspace/team-invite" element={<TeamInvite />} />
+              <Route element={<RequireInitialSetup />}>
+                <Route element={<RequireManager />}>
+                  <Route path="/workspace/team-invite" element={<TeamInvite />} />
+                </Route>
               </Route>
               <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />

@@ -155,7 +155,7 @@ export default function ProjectSetup() {
               mutate({
                 name: name.trim(),
                 description: '',
-                setupCompleted: true,
+                setupCompleted: false,
               });
             }}
             className="mt-8 max-w-[520px] space-y-5"

@@ -121,7 +121,7 @@ export default function InviteBoardModal({ open, onClose }) {
     : ['member', 'viewer'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[99] flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-[#4f5878]/40 backdrop-blur-[2px]" onClick={onClose} />
 
       <div className="relative w-full max-w-[608px] max-h-[min(88vh,860px)] overflow-y-auto rounded-[18px] bg-white shadow-[0_28px_70px_rgba(15,23,42,0.28)]">

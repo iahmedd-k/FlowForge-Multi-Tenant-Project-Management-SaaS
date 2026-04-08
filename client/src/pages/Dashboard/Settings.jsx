@@ -176,7 +176,7 @@ function SectionShell({ eyebrow, title, description, action, children }) {
       {/* header */}
       <div
         style={{
-          padding: '24px 28px 22px',
+          padding: 'clamp(16px, 4vw, 24px) clamp(16px, 5vw, 28px) clamp(14px, 4vw, 22px)',
           borderBottom: '1px solid #f3f4f6',
           background: '#fafafa',
           display: 'flex',
@@ -203,7 +203,7 @@ function SectionShell({ eyebrow, title, description, action, children }) {
           <h2
             style={{
               margin: '4px 0 0',
-              fontSize: 22,
+              fontSize: 'clamp(18px, 4vw, 22px)',
               fontWeight: 700,
               letterSpacing: '-0.025em',
               color: '#111827',
@@ -232,7 +232,7 @@ function FormSection({ title, description, children, footer, noBorder }) {
   return (
     <div
       style={{
-        padding: '22px 28px',
+        padding: 'clamp(16px, 4vw, 22px) clamp(16px, 5vw, 28px)',
         borderBottom: noBorder ? 'none' : '1px solid #f3f4f6',
       }}
     >
@@ -240,7 +240,7 @@ function FormSection({ title, description, children, footer, noBorder }) {
         style={{
           display: 'grid',
           gap: 24,
-          gridTemplateColumns: '200px 1fr',
+          gridTemplateColumns: 'minmax(150px, 200px) 1fr',
         }}
       >
         <div style={{ paddingTop: 2 }}>
@@ -515,7 +515,7 @@ export default function Settings() {
           display: 'flex',
           alignItems: 'center',
           gap: 14,
-          padding: '18px 28px',
+          padding: 'clamp(14px, 3vw, 18px) clamp(16px, 5vw, 28px)',
           borderBottom: '1px solid #f3f4f6',
         }}
       >
@@ -545,7 +545,7 @@ export default function Settings() {
             profileMutation.mutate(values);
           })}
         >
-          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' }}>
             <Input label="Full name" {...profileForm.register('name', { required: true })} />
             <Input label="Email" type="email" {...profileForm.register('email', { required: true })} />
           </div>
@@ -568,7 +568,7 @@ export default function Settings() {
         }
       >
         <form onSubmit={handlePasswordSubmit}>
-          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr 1fr' }}>
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))' }}>
             <Input label="Current password" type="password" {...passwordForm.register('currentPassword', { required: true })} />
             <Input label="New password" type="password" {...passwordForm.register('newPassword', { required: true })} />
             <Input label="Confirm password" type="password" {...passwordForm.register('confirmPassword', { required: true })} />
@@ -687,15 +687,17 @@ export default function Settings() {
   /* ── Render ─────────────────────────────────────────────── */
   return (
     <div style={{ minHeight: '100vh', background: '#f9fafb' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(16px, 4vw, 32px) clamp(16px, 5vw, 24px)' }}>
 
         {/* Page header */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'flex-end',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
+            gap: 16,
             marginBottom: 28,
+            flexWrap: 'wrap',
           }}
         >
           <div>
@@ -714,7 +716,7 @@ export default function Settings() {
             <h1
               style={{
                 margin: '4px 0 6px',
-                fontSize: 30,
+                fontSize: 'clamp(22px, 6vw, 30px)',
                 fontWeight: 800,
                 letterSpacing: '-0.035em',
                 color: '#111827',
@@ -760,7 +762,7 @@ export default function Settings() {
         </div>
 
         {/* Body grid */}
-        <div style={{ display: 'grid', gap: 24, gridTemplateColumns: '220px 1fr', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 24, gridTemplateColumns: 'minmax(200px, 220px) 1fr', alignItems: 'start' }}>
 
           {/* Sidebar */}
           <aside

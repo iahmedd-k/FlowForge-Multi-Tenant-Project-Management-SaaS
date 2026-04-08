@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AlertCircle } from 'lucide-react';
-import { getInvitations, getMembers, inviteUser } from '../../api/workspace.api';
+import { getInvitations, getMembers, inviteUser, updateWorkspace } from '../../api/workspace.api';
 import { useAuth } from '../../hooks/useAuth';
 import { useBillingLimits } from '../../hooks/useBillingLimits';
 import FlowForgeLogo from '../../components/branding/FlowForgeLogo';
@@ -99,6 +99,8 @@ export default function TeamInvitePage() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['workspace-invitations'] });
       await qc.invalidateQueries({ queryKey: ['members'] });
+      // Mark setup as complete
+      await updateWorkspace({ setupCompleted: true });
       setFeedback('Invites sent.');
       setRows(initialRows(canInviteAdmins));
       navigate('/dashboard', { replace: true });
@@ -109,8 +111,57 @@ export default function TeamInvitePage() {
   });
 
   if (isLimitReached) {
-    setFeedback('🚫 Team member limit reached for your plan. Please upgrade to add more members.');
-    return;
+    return (
+      <div className="fixed inset-0 flex flex-col lg:flex-row bg-white">
+        <div className="flex w-full lg:w-[58%] flex-col bg-white px-6 sm:px-10 lg:px-14 pb-8 pt-10">
+          <div className="mb-12 flex items-center gap-2">
+            <div className="h-6 w-6">
+              <FlowForgeLogo to="/" compact />
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center gap-6 py-16">
+            <AlertCircle className="h-12 w-12 text-orange-600" />
+            <div className="text-center">
+              <h1 className="mb-3 text-[24px] font-bold text-gray-900">Team member limit reached</h1>
+              <p className="mb-6 max-w-[420px] text-[15px] leading-7 text-gray-600">
+                You've reached the maximum team members ({teamMemberQuota?.limit}) for your plan. Upgrade to add more members.
+              </p>
+              <a
+                href="/billing"
+                className="inline-block h-9 rounded bg-[#0073ea] px-5 text-sm font-medium text-white transition hover:bg-[#0060c0]"
+              >
+                Upgrade Plan
+              </a>
+            </div>
+          </div>
+
+          <div className="flex-1" />
+          <div className="pt-5">
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="text-sm text-gray-500 transition hover:text-gray-700"
+            >
+              Continue to dashboard
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden lg:flex relative flex-1 overflow-hidden bg-[#00C875]">
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="absolute right-5 top-5 z-10 text-white/70 transition hover:text-white"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const handleInvite = () => {
@@ -123,13 +174,15 @@ export default function TeamInvitePage() {
     inviteMutation.mutate();
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    // Mark setup as complete
+    await updateWorkspace({ setupCompleted: true });
     navigate('/dashboard', { replace: true });
   };
 
   return (
-    <div className="fixed inset-0 flex bg-white">
-      <div className="flex w-[58%] min-w-[560px] flex-col bg-white px-14 pb-8 pt-10">
+    <div className="fixed inset-0 flex flex-col lg:flex-row bg-white">
+      <div className="flex w-full lg:w-[58%] flex-col bg-white px-6 sm:px-10 lg:px-14 pb-8 pt-10 overflow-y-auto">
         <div className="mb-12 flex items-center gap-2">
           <div className="h-6 w-6">
             <FlowForgeLogo to="/" compact />
@@ -137,15 +190,6 @@ export default function TeamInvitePage() {
         </div>
 
 
-        {isLimitReached && teamMemberQuota && (
-          <div className="mb-6 rounded-lg border-l-4 border-orange-400 bg-orange-50 p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm flex-1">
-              <p className="font-semibold text-orange-900">Team member limit reached</p>
-              <p className="text-orange-700">You've reached the maximum team members ({teamMemberQuota.limit}) for your plan. <a href="/subscription" className="underline font-semibold hover:opacity-80">Upgrade</a> to add more members.</p>
-            </div>
-          </div>
-        )}
         <h1 className="mb-3 text-[28px] font-bold leading-tight text-gray-900">Who else is on your team?</h1>
         <p className="mb-7 max-w-[520px] text-[15px] leading-7 text-[#59627b]">
           Invite teammates into <span className="font-semibold text-[#25314f]">{workspace?.name || 'your workspace'}</span> so they can start collaborating right away.
@@ -157,7 +201,7 @@ export default function TeamInvitePage() {
             const isDuplicate = normalizedEmail && duplicateEmails.has(normalizedEmail);
             const exists = normalizedEmail && !isDuplicate && (memberEmails.has(normalizedEmail) || pendingEmails.has(normalizedEmail));
             return (
-              <div key={row.id} className={`flex items-start gap-2 ${isLimitReached ? 'opacity-60' : ''}`}>
+              <div key={row.id} className="flex items-start gap-2">
                 <div className="flex-1">
                   <input
                     type="email"
@@ -187,17 +231,15 @@ export default function TeamInvitePage() {
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
-                  disabled={isLimitReached}
-                  className={`flex h-10 w-10 items-center justify-center rounded border text-[20px] leading-none transition ${isLimitReached ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700'}`}
+                  className="flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-[20px] leading-none text-gray-400 transition hover:bg-gray-50 hover:text-gray-700"
                   aria-label="Remove invite row"
                 >
                   ×
                 </button>
                 <button
                   type="button"
-                  disabled={isLimitReached}
-                  className={`mt-4 flex w-fit items-center gap-2 text-sm transition ${isLimitReached ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'}`}
-                  title={isLimitReached ? `Maximum ${teamMemberQuota?.limit} members reached` : 'Add another member'}
+                  className="mt-4 flex w-fit items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
+                  title="Add another member"
                 >
                   <span className={`flex h-5 w-5 items-center justify-center rounded-full border font-light leading-none text-[15px] ${isLimitReached ? 'border-gray-300 text-gray-300' : 'border-gray-400 text-gray-400'}`}>
                     +
@@ -262,10 +304,9 @@ export default function TeamInvitePage() {
           <button
             type="button"
             onClick={handleInvite}
-            disabled={!hasAnyEmail || inviteMutation.isPending || !canInviteMembers || isLimitReached}
-            title={isLimitReached ? `Maximum ${teamMemberQuota?.limit} members reached` : ''}
+            disabled={!hasAnyEmail || inviteMutation.isPending || !canInviteMembers}
             className={`h-9 rounded px-5 text-sm font-medium transition ${
-              hasAnyEmail && !inviteMutation.isPending && canInviteMembers && !isLimitReached
+              hasAnyEmail && !inviteMutation.isPending && canInviteMembers
                 ? 'bg-[#0073ea] text-white shadow-sm hover:bg-[#0060c0]'
                 : 'cursor-not-allowed bg-gray-100 text-gray-400'
             }`}

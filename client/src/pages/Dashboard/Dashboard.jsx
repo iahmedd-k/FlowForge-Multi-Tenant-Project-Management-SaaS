@@ -3967,15 +3967,11 @@ export default function Dashboard() {
 
   return (
     <div className="px-2 py-2">
-      {['member', 'viewer'].includes(currentRole) ? (
+      {['member', 'viewer'].includes(currentRole) && !hasProjectAccess ? (
         <div className="mb-3 rounded-[14px] border border-[#d8e4fb] bg-[#f7fbff] px-4 py-3 text-[13px] text-[#496282]">
-          {!hasProjectAccess
-            ? currentRole === 'viewer'
-              ? 'Viewer access: this workspace is ready, but no projects have been shared with you yet. Your dashboard will fill in automatically when a project is shared.'
-              : 'Member access: this workspace is ready, but no projects have been assigned to you yet. Your dashboard will fill in automatically when you are added to a project.'
-            : currentRole === 'viewer'
-              ? 'Viewer access: you can review project data and comment on accessible tasks, but editing and creation stay with members and managers.'
-              : 'Member access: you only see projects you belong to. You can work inside those projects, and task permissions depend on assignment.'}
+          {currentRole === 'viewer'
+            ? 'Viewer access: this workspace is ready, but no projects have been shared with you yet. Your dashboard will fill in automatically when a project is shared.'
+            : 'Member access: this workspace is ready, but no projects have been assigned to you yet. Your dashboard will fill in automatically when you are added to a project.'}
         </div>
       ) : null}
       {!hasProjectAccess && canCreateProject ? (

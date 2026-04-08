@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
 import { Zap, MessageSquare, AlertCircle } from 'lucide-react';
+import { useNotify } from '../../../hooks/useNotify';
 import { getTask, updateTask, addComment, deleteTask } from '../../../api/tasks.api';
 import { getProject } from '../../../api/projects.api';
 import { getAutomations } from '../../../api/automations.api';
@@ -198,6 +198,7 @@ export default function TaskDetailPanel({ taskId, projectId, onClose }) {
   const canEditTask = isManager || (currentRole === 'member' && isAssignee);
   const canEditManagerFields = isManager;
   const canComment = ['owner', 'admin', 'member', 'viewer'].includes(currentRole);
+  const notify = useNotify();
 
   const handleSave = () => {
     if (!canEditTask) return;
@@ -221,10 +222,7 @@ export default function TaskDetailPanel({ taskId, projectId, onClose }) {
         .join(', ');
       
       setTimeout(() => {
-        toast.success(`✓ Task saved. ${messages}.`, {
-          icon: '⚡',
-          duration: 4000,
-        });
+        notify.success(`✓ Task saved. ${messages}.`);
       }, 500);
     }
   };
@@ -244,10 +242,7 @@ export default function TaskDetailPanel({ taskId, projectId, onClose }) {
       const activeAutomations = automationsData?.automations || [];
       if (activeAutomations.find((a) => a.key === 'comment_mention_trigger' && a.isActive)) {
         setTimeout(() => {
-          toast.success(`✓ Mentioned ${mentions.length} user${mentions.length > 1 ? 's' : ''}. Notifications will be sent.`, {
-            icon: '⚡',
-            duration: 3000,
-          });
+          notify.success(`✓ Mentioned ${mentions.length} user${mentions.length > 1 ? 's' : ''}. Notifications will be sent.`);
         }, 300);
       }
     }
