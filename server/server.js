@@ -39,7 +39,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(passport.initialize());
-app.use(passport.session());
+// Note: Not using passport.session() since we're using token-based auth, not sessions
 
 // ============================================================================
 // HEALTH CHECK ENDPOINT - COLD START WAKE-UP
