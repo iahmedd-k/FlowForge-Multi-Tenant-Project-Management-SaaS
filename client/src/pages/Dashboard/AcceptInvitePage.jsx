@@ -7,15 +7,22 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { acceptInviteApi, previewInviteApi } from '../../api/auth.api';
 import { setAuth } from '../../store/authSlice';
+import FlowForgeLogo from '../../components/branding/FlowForgeLogo';
 import Input from '../../components/Dashboard Components/ui/Input';
 import Button from '../../components/Dashboard Components/ui/Button';
 import Spinner from '../../components/Dashboard Components/ui/Spinner';
 
-const schema = z.object({
+const baseSchema = {
   name: z.string().min(2, 'Name too short'),
   email: z.string().email('Invalid email'),
+};
+
+const schemaWithPassword = z.object({
+  ...baseSchema,
   password: z.string().min(6, 'Minimum 6 characters'),
 });
+
+const schemaWithoutPassword = z.object(baseSchema);
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
@@ -31,17 +38,19 @@ export default function AcceptInvitePage() {
     retry: false,
   });
 
+  const needsPassword = !data?.hasPassword;
+  const schema = needsPassword ? schemaWithPassword : schemaWithoutPassword;
+
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
     values: {
       name: data?.existingName || '',
       email: data?.email || '',
-      password: '',
+      ...(needsPassword ? { password: '' } : {}),
     },
   });
 
@@ -98,12 +107,12 @@ export default function AcceptInvitePage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-lg rounded-[22px] border border-[#d9e3f3] bg-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0073ea] text-xl font-bold text-white">
-              F
+            <div className="mx-auto mb-4 h-14 w-14">
+              <FlowForgeLogo to="/" compact />
             </div>
             <h1 className="text-[30px] font-semibold text-[#1f2a44]">Set up your account</h1>
             <p className="mt-2 text-[15px] text-[#667391]">
-              Finish joining <span className="font-semibold text-[#1f2a44]">{data.workspaceName}</span> so you can log in next time with your own credentials.
+              Finish joining <span className="font-semibold text-[#1f2a44]">{data.workspaceName}</span>{needsPassword ? ' to get started' : ''}{data.hasPassword && !data.existingUser ? ' with your existing credentials' : ''}{data.existingUser && data.hasPassword ? ' to access' : ''}.
             </p>
           </div>
 
@@ -124,13 +133,23 @@ export default function AcceptInvitePage() {
               {...register('email')}
             />
 
-            <Input
-              label={data.existingUser ? 'Password' : 'Create password'}
-              type="password"
-              placeholder={data.existingUser ? 'Enter your password' : 'Create a password'}
-              error={errors.password?.message}
-              {...register('password')}
-            />
+            {needsPassword && (
+              <Input
+                label="Create password"
+                type="password"
+                placeholder="Create a password"
+                error={errors.password?.message}
+                {...register('password')}
+              />
+            )}
+            
+            {!needsPassword && data.existingUser && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-800">
+                  You already have an account. Log in with your existing password or use Google.
+                </p>
+              </div>
+            )}
 
             {serverErr && (
               <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">

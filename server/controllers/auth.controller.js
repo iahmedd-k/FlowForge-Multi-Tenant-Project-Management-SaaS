@@ -297,8 +297,8 @@ exports.previewInvite = async (req, res) => {
       return error(res, 'Invite link is invalid or expired', 400);
     }
 
-    const workspace = await Workspace.findById(payload.workspaceId).select('name');
-    const existingUser = await User.findOne({ email: payload.email }).select('_id name email');
+    const workspace = await Workspace.findById(payload.workspaceId).select('_id name');
+    const existingUser = await User.findOne({ email: payload.email }).select('_id name email passwordHash');
 
     return success(res, {
       invite: {
@@ -310,6 +310,7 @@ exports.previewInvite = async (req, res) => {
         expiresAt: invite.expiresAt,
         existingUser: Boolean(existingUser),
         existingName: existingUser?.name || '',
+        hasPassword: Boolean(existingUser?.passwordHash),
       },
     });
   } catch (err) {
@@ -403,12 +404,18 @@ exports.acceptInvite = async (req, res) => {
     let preferredWorkspaceId = workspaceId;
 
     if (user) {
-      if (!password || password.length < 6) return error(res, 'Password must be at least 6 characters', 400);
-      const valid = await user.comparePassword(password);
-      if (!valid) return error(res, 'Invalid password for this invited email', 401);
+      // User exists - check if they have a password (email/password auth) or only Google auth
+      if (user.passwordHash) {
+        // Email/password user - validate password
+        if (!password || password.length < 6) return error(res, 'Password must be at least 6 characters', 400);
+        const valid = await user.comparePassword(password);
+        if (!valid) return error(res, 'Invalid password for this invited email', 401);
+      }
+      // For Google-only users (no passwordHash), just accept invite without password validation
       if (name?.trim()) user.name = name.trim();
       await user.save();
     } else {
+      // New user - require name and password
       if (!name?.trim()) return error(res, 'Name is required', 400);
       if (!password || password.length < 6) return error(res, 'Password must be at least 6 characters', 400);
       const userId = new mongoose.Types.ObjectId();
