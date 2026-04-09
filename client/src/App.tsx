@@ -164,22 +164,26 @@ const RequireWorkspaceSetup = () => {
   const { user, workspace, loading } = authState;
   const location = useLocation();
   const currentRole = getActiveRole(authState);
-  const shouldSetup = Boolean(
+  
+  // Show setup page if:
+  // - User is logged in AND
+  // - (Workspace is null OR workspace setup is not completed) AND
+  // - Current role is owner
+  const shouldAllowSetup = Boolean(
     user &&
-    workspace &&
-    currentRole === "owner" &&
-    !workspace.setupCompleted
+    (workspace === null || !workspace.setupCompleted) &&
+    currentRole === "owner"
   );
 
   if (loading) {
     return <FullScreenLoader />;
   }
 
-  if (shouldSetup && location.pathname !== "/workspace/setup") {
+  if (shouldAllowSetup && location.pathname !== "/workspace/setup") {
     return <Navigate to="/workspace/setup" replace />;
   }
 
-  if (!shouldSetup && location.pathname === "/workspace/setup") {
+  if (!shouldAllowSetup && location.pathname === "/workspace/setup") {
     return <Navigate to="/dashboard" replace />;
   }
 
