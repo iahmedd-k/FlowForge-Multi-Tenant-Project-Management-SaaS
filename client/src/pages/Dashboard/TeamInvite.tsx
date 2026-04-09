@@ -33,6 +33,8 @@ export default function TeamInvitePage() {
   
   const [rows, setRows] = useState(() => initialRows(canInviteAdmins));
   const [feedback, setFeedback] = useState('');
+  const [fallbackLinks, setFallbackLinks] = useState([]);
+  const [showLinks, setShowLinks] = useState(false);
 
   const allowedRoles = useMemo(
     () => ROLE_OPTIONS.filter((role) => role.value !== 'admin' || canInviteAdmins),
@@ -93,12 +95,21 @@ export default function TeamInvitePage() {
   const inviteMutation = useMutation({
     mutationFn: async () => {
       const uniqueRows = filledRows.filter((row, index, list) => list.findIndex((item) => item.email === row.email) === index);
+      const links = [];
       for (const row of uniqueRows) {
         if (memberEmails.has(row.email) || pendingEmails.has(row.email)) continue;
-        await inviteUser({ email: row.email, role: row.role });
+        const response = await inviteUser({ email: row.email, role: row.role });
+        if (response.data.data?.fallbackLink) {
+          links.push({
+            email: row.email,
+            url: response.data.data.fallbackLink,
+            inviterName: response.data.data.invite?.invitedBy?.name,
+          });
+        }
       }
+      return links;
     },
-    onSuccess: async () => {
+    onSuccess: async (links) => {
       await qc.invalidateQueries({ queryKey: ['workspace-invitations'] });
       await qc.invalidateQueries({ queryKey: ['members'] });
       // Mark setup as complete
@@ -111,9 +122,14 @@ export default function TeamInvitePage() {
         workspaces: workspace?.workspaces || [],
       }));
       
-      setFeedback('Invites sent.');
-      setRows(initialRows(canInviteAdmins));
-      navigate('/dashboard', { replace: true });
+      if (links.length > 0) {
+        setFallbackLinks(links);
+        setShowLinks(true);
+      } else {
+        setFeedback('Invites sent.');
+        setRows(initialRows(canInviteAdmins));
+        setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
+      }
     },
     onError: (err: any) => {
       setFeedback(err?.response?.data?.message || 'Unable to send invites.');
@@ -403,6 +419,55 @@ export default function TeamInvitePage() {
           <div className="h-3 w-44 rounded-full bg-black opacity-20 blur-[6px]" />
         </div>
       </div>
+
+      {showLinks && fallbackLinks.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-auto rounded-lg bg-white p-6 dark:bg-gray-900">
+            <h2 className="mb-2 text-lg font-bold text-gray-900 dark:text-white">Share Invite Links</h2>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              If email delivery is delayed, share these links directly with your teammates:
+            </p>
+            
+            <div className="space-y-3">
+              {fallbackLinks.map((link, idx) => (
+                <div key={idx} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{link.email}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={link.url}
+                      className="flex-1 rounded border border-gray-300 bg-gray-50 px-2 py-1.5 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(link.url);
+                        toast.success('Link copied!');
+                      }}
+                      className="rounded bg-[#0073ea] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0060c0]"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowLinks(false);
+                setRows(initialRows(canInviteAdmins));
+                setTimeout(() => navigate('/dashboard', { replace: true }), 500);
+              }}
+              className="mt-6 w-full rounded bg-[#0073ea] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0060c0]"
+            >
+              Continue to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
