@@ -190,8 +190,8 @@ const Signup = () => {
 
           <p className="text-center text-xs text-muted-foreground">
             By signing up you agree to our{" "}
-            <a href="#" className="underline">Terms</a> and{" "}
-            <a href="#" className="underline">Privacy Policy</a>.
+            <a href="/help" target="_blank" rel="noopener noreferrer" className="underline">Terms</a> and{" "}
+            <a href="/help" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>.
           </p>
         </form>
 

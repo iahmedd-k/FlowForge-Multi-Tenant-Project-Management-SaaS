@@ -14,6 +14,8 @@ export const changePasswordApi = (data) => api.put('/auth/password', data);
 
 export const refreshApi = () => api.post('/auth/refresh', null, authConfig);
 
+export const forgotPasswordApi = (data) => api.post('/auth/forgot-password', data, authConfig);
+
 export const previewInviteApi = (token) => api.get(`/auth/invite/preview?token=${encodeURIComponent(token)}`, authConfig);
 
 export const declineInviteApi = (token) => api.post('/auth/invite/decline', { token }, authConfig);

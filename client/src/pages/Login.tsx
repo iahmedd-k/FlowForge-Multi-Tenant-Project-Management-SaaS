@@ -137,7 +137,7 @@ const Login = () => {
             <label className="flex items-center gap-2 text-muted-foreground">
               <input type="checkbox" className="rounded border-input" /> <span>Remember me</span>
             </label>
-            <a href="#" className="font-medium text-primary hover:underline">Forgot password?</a>
+            <Link to="/forgot-password" className="font-medium text-primary hover:underline">Forgot password?</Link>
           </div>
 
           {error ? (
