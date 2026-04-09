@@ -39,6 +39,7 @@ async function exchangeToken(req, res) {
       code,
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
+    });
 
     const { id_token, access_token } = tokenResponse.data;
 
