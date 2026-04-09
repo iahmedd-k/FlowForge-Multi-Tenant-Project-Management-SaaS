@@ -42,7 +42,16 @@ const Signup = () => {
         password,
       });
 
-      const { user, workspace, workspaces } = res.data.data;
+      const { user, workspace, workspaces, accessToken, refreshToken } = res.data.data;
+      
+      // Store tokens
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      
       dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
       
       // Skip setup page if workspace is already set up

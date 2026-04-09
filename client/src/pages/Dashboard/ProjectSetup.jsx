@@ -105,15 +105,23 @@ export default function ProjectSetup() {
   const { mutate, isPending, error } = useMutation({
     mutationFn: createWorkspace,
     onSuccess: (response) => {
-      const nextWorkspace = response.data.data.workspace;
-      const nextWorkspaces = response.data.data.workspaces || [
-        { workspace: nextWorkspace, role: 'owner', membershipId: nextWorkspace._id }
-      ];
+      const { user: nextUser, workspace: nextWorkspace, workspaces: nextWorkspaces, accessToken, refreshToken } = response.data.data;
+      
+      // Store new tokens with workspaceId
+      if (accessToken) {
+        localStorage.setItem('accessToken', accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
 
+      // Update Redux with new workspace info
       dispatch(setAuth({
-        user: { ...user, workspaceId: nextWorkspace._id },
+        user: nextUser,
         workspace: nextWorkspace,
-        workspaces: nextWorkspaces,
+        workspaces: nextWorkspaces || [
+          { workspace: nextWorkspace, role: 'owner', membershipId: nextWorkspace._id }
+        ],
       }));
 
       navigate('/workspace/team-invite', { replace: true });
