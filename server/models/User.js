@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name:          { type: String, required: true, trim: true },
   email:         { type: String, required: true, unique: true, lowercase: true },
-  passwordHash:  { type: String, required: true },
+  passwordHash:  { type: String, default: null },
   avatar:        { type: String, default: null },
   workspaceId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', index: true },
   role:          { type: String, enum: ['owner', 'admin', 'member', 'viewer'], default: 'member' },

@@ -55,13 +55,11 @@ async function exchangeToken(req, res) {
     if (!user) {
       // Create new user WITHOUT workspace
       // Workspace will be created when user submits workspace setup form
+      const fullName = `${given_name || ''} ${family_name || ''}`.trim() || 'User';
       user = new User({
+        name: fullName,
         email,
-        firstName: given_name || '',
-        lastName: family_name || '',
         avatar: picture,
-        googleId,
-        isVerified: true,
         workspaceId: null,
         role: 'owner',
       });
