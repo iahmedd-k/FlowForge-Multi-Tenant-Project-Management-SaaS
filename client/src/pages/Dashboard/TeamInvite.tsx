@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { AlertCircle } from 'lucide-react';
 import { getInvitations, getMembers, inviteUser, updateWorkspace } from '../../api/workspace.api';
 import { useAuth } from '../../hooks/useAuth';
 import { useBillingLimits } from '../../hooks/useBillingLimits';
+import { setAuth } from '../../store/authSlice';
 import FlowForgeLogo from '../../components/branding/FlowForgeLogo';
 
 const ROLE_OPTIONS = [
@@ -23,8 +25,9 @@ function initialRows(canInviteAdmins) {
 
 export default function TeamInvitePage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const qc = useQueryClient();
-  const { workspace, canInviteAdmins, canInviteMembers } = useAuth();
+  const { workspace, user, canInviteAdmins, canInviteMembers } = useAuth();
   const { canAddTeamMember, getTeamMemberQuota } = useBillingLimits();
   const teamMemberQuota = getTeamMemberQuota();
   const isLimitReached = !canAddTeamMember();
@@ -101,6 +104,14 @@ export default function TeamInvitePage() {
       await qc.invalidateQueries({ queryKey: ['members'] });
       // Mark setup as complete
       await updateWorkspace({ setupCompleted: true });
+      
+      // Update Redux state to reflect the completed setup
+      dispatch(setAuth({
+        user,
+        workspace: { ...workspace, setupCompleted: true },
+        workspaces: workspace?.workspaces || [],
+      }));
+      
       setFeedback('Invites sent.');
       setRows(initialRows(canInviteAdmins));
       navigate('/dashboard', { replace: true });
@@ -177,6 +188,14 @@ export default function TeamInvitePage() {
   const handleSkip = async () => {
     // Mark setup as complete
     await updateWorkspace({ setupCompleted: true });
+    
+    // Update Redux state to reflect the completed setup
+    dispatch(setAuth({
+      user,
+      workspace: { ...workspace, setupCompleted: true },
+      workspaces: workspace?.workspaces || [],
+    }));
+    
     navigate('/dashboard', { replace: true });
   };
 
