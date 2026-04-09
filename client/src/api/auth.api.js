@@ -19,3 +19,15 @@ export const previewInviteApi = (token) => api.get(`/auth/invite/preview?token=$
 export const declineInviteApi = (token) => api.post('/auth/invite/decline', { token }, authConfig);
 
 export const acceptInviteApi = (data) => api.post('/auth/invite/accept', data, authConfig);
+
+// Google OAuth
+export const getGoogleAuthUrl = () => {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const redirectUri = `${window.location.origin}/auth/google-callback`;
+  const scope = 'profile email';
+  const responseType = 'code';
+  
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}`;
+};
+
+export const googleSignupApi = (data) => api.post('/auth/google/callback', data, authConfig);

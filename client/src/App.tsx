@@ -10,6 +10,7 @@ import AppLayout from "./components/Dashboard Components/layout/AppLayout.jsx";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
+import GoogleCallback from "./pages/auth/GoogleCallback.tsx";
 import Dashboard from "./pages/Dashboard/Dashboard.jsx";
 import Projects from "./pages/Dashboard/Projects.jsx";
 import Calendar from "./pages/Dashboard/Calendar.jsx";
@@ -270,6 +271,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
             </Route>
+            <Route path="/auth/google-callback" element={<GoogleCallback />} />
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/invite/setup" element={<AcceptInvitePage />} />
             <Route path="/contact" element={<ContactPage />} />

@@ -1,0 +1,195 @@
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
+const User = require('../models/User');
+const Workspace = require('../models/Workspace');
+const WorkspaceMember = require('../models/WorkspaceMember');
+const { ensureWorkspaceAccess } = require('../services/workspace-member.service');
+const {
+  signAccessToken,
+  signRefreshToken,
+} = require('../utils/jwt.util');
+const { success, error } = require('../utils/response.util');
+
+const cookieOpts = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+};
+
+/**
+ * Exchange Google Authorization Code for tokens
+ * POST /api/auth/google/token
+ */
+async function exchangeToken(req, res) {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json(error('Authorization code is required', 400));
+    }
+
+    // Exchange code for tokens with Google
+    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: process.env.GOOGLE_CALLBACK_URL || `${process.env.CLIENT_URL}/auth/google-callback`,
+    });
+
+    const { id_token, access_token } = tokenResponse.data;
+
+    // Decode ID token to get user info
+    const decoded = jwt.decode(id_token);
+    const { email, given_name, family_name, picture, sub: googleId } = decoded;
+
+    // Find or create user
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Create new user
+      const workspace = new Workspace({
+        name: `${given_name}'s Workspace`,
+        description: 'Default workspace',
+      });
+      await workspace.save();
+
+      user = new User({
+        email,
+        firstName: given_name || '',
+        lastName: family_name || '',
+        avatar: picture,
+        googleId,
+        isVerified: true,
+        workspaceId: workspace._id,
+        role: 'admin',
+      });
+
+      await user.save();
+
+      // Update workspace owner
+      workspace.owner = user._id;
+      await workspace.save();
+
+      // Add user to workspace members
+      await new WorkspaceMember({
+        workspaceId: workspace._id,
+        userId: user._id,
+        role: 'admin',
+      }).save();
+    } else {
+      // Update existing user with Google ID if not already set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.isVerified = true;
+        if (!user.avatar) user.avatar = picture;
+        await user.save();
+      }
+    }
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      userId: user._id,
+      workspaceId: user.workspaceId,
+      role: user.role,
+    });
+
+    const refreshToken = signRefreshToken({
+      userId: user._id,
+    });
+
+    // Get workspace info
+    const { activeWorkspace, activeRole, workspaces } = await ensureWorkspaceAccess(
+      user._id,
+      user.workspaceId
+    );
+
+    // Set refresh token in cookie
+    res.cookie('refreshToken', refreshToken, cookieOpts);
+
+    return res.status(200).json(
+      success('Google authentication successful', {
+        accessToken,
+        refreshToken,
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar,
+          role: user.role,
+        },
+        workspace: activeWorkspace,
+        workspaces,
+      })
+    );
+  } catch (err) {
+    console.error('Google token exchange error:', err);
+    return res.status(500).json(error('Google authentication failed', 500));
+  }
+}
+
+/**
+ * Google OAuth Callback Handler (with passport)
+ * Called after successful Google authentication
+ */
+async function googleAuth(req, res) {
+  try {
+    if (!req.user) {
+      return res.status(401).json(error('Authentication failed', 401));
+    }
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      userId: req.user._id,
+      workspaceId: req.user.workspaceId,
+      role: req.user.role,
+    });
+
+    const refreshToken = signRefreshToken({
+      userId: req.user._id,
+    });
+
+    // Get or build auth payload
+    const { activeWorkspace, activeRole, workspaces } = await ensureWorkspaceAccess(
+      req.user._id,
+      req.user.workspaceId
+    );
+
+    // Update user with workspace info
+    if (String(req.user.workspaceId || '') !== String(activeWorkspace._id)) {
+      req.user.workspaceId = activeWorkspace._id;
+      req.user.role = activeRole;
+      await req.user.save();
+    }
+
+    // Set refresh token in cookie
+    res.cookie('refreshToken', refreshToken, cookieOpts);
+
+    // Return tokens and user data
+    return res.status(200).json(
+      success('Google authentication successful', {
+        accessToken,
+        refreshToken,
+        user: {
+          _id: req.user._id,
+          email: req.user.email,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName,
+          avatar: req.user.avatar,
+          role: req.user.role,
+        },
+        workspace: activeWorkspace,
+        workspaces,
+      })
+    );
+  } catch (err) {
+    console.error('Google auth error:', err);
+    return res.status(500).json(error('Google authentication failed', 500));
+  }
+}
+
+module.exports = {
+  exchangeToken,
+  googleAuth,
+};

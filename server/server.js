@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const passport = require('passport');
+require('./config/passport');
 const connectDB = require('./config/db');
 const stripeService = require('./services/stripe.service');
 const { error } = require('./utils/response.util');
@@ -29,15 +31,35 @@ app.post(
 
 app.use(helmet());
 app.use(cors({
-  origin: '*',
-  credentials: false,
+  origin: process.env.CLIENT_URL || '*',
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ============================================================================
+// HEALTH CHECK ENDPOINT - COLD START WAKE-UP
+// ============================================================================
+// This endpoint is used to wake up the server on Render's free tier
+// To remove this functionality:
+// 1. Delete this entire health check route (lines below)
+// 2. Remove the corresponding fetch call in client/src/pages/Index.tsx
+// 
+// The endpoint simply returns a 200 status to keep the server active
+// during the client's session before they attempt to login/signup
+// ============================================================================
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+// END OF HEALTH CHECK ENDPOINT
+// ============================================================================
 
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/auth', require('./routes/google.routes'));
 app.use('/api/workspace', require('./routes/workspace.routes'));
 app.use('/api/projects', require('./routes/project.routes'));
 app.use('/api/tasks', require('./routes/task.routes'));
