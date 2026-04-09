@@ -11,7 +11,7 @@ const authSlice = createSlice({
   reducers: {
     setAuth: (state, action) => {
       const user = action.payload.user || null;
-      const workspace = action.payload.workspace || user?.workspaceId || null;
+      const workspace = 'workspace' in action.payload ? action.payload.workspace : (user?.workspaceId || null);
       const workspaces = action.payload.workspaces || [];
       state.user = user;
       state.workspace = workspace;

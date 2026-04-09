@@ -52,7 +52,8 @@ const Signup = () => {
         localStorage.setItem('refreshToken', refreshToken);
       }
       
-      dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
+      // Set auth with explicit workspace value (can be null)
+      dispatch(setAuth({ user, workspace, workspaces }));
       
       // Skip setup page if workspace is already set up
       const shouldSkipSetup = workspace?.setupCompleted;
