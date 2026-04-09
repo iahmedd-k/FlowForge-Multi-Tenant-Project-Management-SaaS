@@ -14,7 +14,8 @@ const { isLimitExceeded, BILLING_LIMITS } = require('../utils/billingLimits');
 async function checkBillingLimit(req, res, next) {
   try {
     // For workspace creation, check against user's workspace count
-    if (req.path.includes('create') && req.path.includes('workspace')) {
+    // Note: req.path is just '/create' since router is mounted at /api/workspace
+    if (req.path === '/create' && req.method === 'POST') {
       const user = await User.findById(req.user.userId);
       if (!user) return error(res, 'User not found', 404);
 

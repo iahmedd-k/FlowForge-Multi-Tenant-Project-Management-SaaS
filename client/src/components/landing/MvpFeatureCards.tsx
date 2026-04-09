@@ -80,9 +80,9 @@ const cards = [
           <span className="text-[11px] text-gray-500">5 tasks due</span>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-gray-400">
-          {["S","M","T","W","T","F","S"].map((day) => <span key={day}>{day}</span>)}
+          {["S","M","T","W","T","F","S"].map((day, dayIdx) => <span key={`day-${dayIdx}`}>{day}</span>)}
           {Array.from({ length: 14 }).map((_, idx) => (
-            <div key={idx} className={`rounded-lg py-2 ${[4,8,11].includes(idx) ? 'bg-blue-50 text-blue-700 font-semibold' : 'bg-gray-50 text-gray-500'}`}>
+            <div key={`date-${idx}`} className={`rounded-lg py-2 ${[4,8,11].includes(idx) ? 'bg-blue-50 text-blue-700 font-semibold' : 'bg-gray-50 text-gray-500'}`}>
               {idx + 8}
             </div>
           ))}

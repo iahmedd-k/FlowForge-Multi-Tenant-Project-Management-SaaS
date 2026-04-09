@@ -126,6 +126,10 @@ export default function ProjectSetup() {
 
       navigate('/workspace/team-invite', { replace: true });
     },
+    onError: (err) => {
+      console.error('Workspace creation error:', err);
+      console.error('Error response:', err.response?.status, err.response?.data);
+    },
   });
 
   return (
@@ -189,7 +193,7 @@ export default function ProjectSetup() {
 
             {error ? (
               <p className="rounded-[14px] border border-[#f0c8d0] bg-[#fff5f7] px-4 py-3 text-[14px] text-[#b42318]">
-                {error.response?.data?.message || 'Unable to save workspace details.'}
+                {error.response?.data?.message || error.message || `Error (${error.response?.status || 'Unknown'}): Unable to save workspace details.`}
               </p>
             ) : null}
 

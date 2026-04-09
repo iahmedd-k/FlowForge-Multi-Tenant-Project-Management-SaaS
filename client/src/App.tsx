@@ -301,13 +301,7 @@ const App = () => (
                 <Route element={<RequireOwner />}>
                   <Route path="/workspace/setup" element={<ProjectSetup />} />
                 </Route>
-              </Route>
-              <Route element={<RequireInitialSetup />}>
-                <Route element={<RequireManager />}>
-                  <Route path="/workspace/team-invite" element={<TeamInvite />} />
-                </Route>
-              </Route>
-              <Route element={<AppLayout />}>
+                <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:projectId" element={<Projects />} />
@@ -323,7 +317,12 @@ const App = () => (
                   </Route>
                 </Route>
               </Route>
-
+              <Route element={<RequireInitialSetup />}>
+                <Route element={<RequireManager />}>
+                  <Route path="/workspace/team-invite" element={<TeamInvite />} />
+                </Route>
+              </Route>
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>

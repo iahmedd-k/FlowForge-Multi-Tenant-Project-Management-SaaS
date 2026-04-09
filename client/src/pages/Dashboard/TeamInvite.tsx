@@ -236,16 +236,6 @@ export default function TeamInvitePage() {
                 >
                   ×
                 </button>
-                <button
-                  type="button"
-                  className="mt-4 flex w-fit items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
-                  title="Add another member"
-                >
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full border font-light leading-none text-[15px] ${isLimitReached ? 'border-gray-300 text-gray-300' : 'border-gray-400 text-gray-400'}`}>
-                    +
-                  </span>
-                  Add Member
-                </button>
               </div>
             );
           })}
@@ -254,9 +244,18 @@ export default function TeamInvitePage() {
         <button
           type="button"
           onClick={addMember}
-          className="mt-4 flex w-fit items-center gap-2 text-sm text-gray-500 transition hover:text-gray-700"
+          disabled={isLimitReached}
+          className={`mt-4 flex w-fit items-center gap-2 text-sm transition ${
+            isLimitReached 
+              ? 'cursor-not-allowed text-gray-300' 
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[15px] font-light leading-none text-gray-400">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[15px] font-light leading-none ${
+            isLimitReached 
+              ? 'border-gray-300 text-gray-300' 
+              : 'border-gray-400 text-gray-400'
+          }`}>
             +
           </span>
           Add another
@@ -293,11 +292,11 @@ export default function TeamInvitePage() {
 
         <div className="flex-1" />
 
-        <div className="flex items-center justify-between pt-5">
+        <div className="flex items-center justify-between gap-3 pt-5">
           <button
             type="button"
             onClick={handleSkip}
-            className="text-sm text-gray-500 transition hover:text-gray-700"
+            className="text-sm font-medium text-gray-600 transition hover:text-gray-900"
           >
             Remind me later
           </button>
@@ -305,7 +304,7 @@ export default function TeamInvitePage() {
             type="button"
             onClick={handleInvite}
             disabled={!hasAnyEmail || inviteMutation.isPending || !canInviteMembers}
-            className={`h-9 rounded px-5 text-sm font-medium transition ${
+            className={`h-10 rounded px-6 text-sm font-medium transition ${
               hasAnyEmail && !inviteMutation.isPending && canInviteMembers
                 ? 'bg-[#0073ea] text-white shadow-sm hover:bg-[#0060c0]'
                 : 'cursor-not-allowed bg-gray-100 text-gray-400'
