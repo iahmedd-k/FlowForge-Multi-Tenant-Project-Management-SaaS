@@ -53,10 +53,12 @@ async function exchangeToken(req, res) {
     let user = await User.findOne({ email });
 
     if (!user) {
-      // Create new user
+      // Create new user with empty workspace (no name yet)
+      // User will enter workspace name on setup page
       const workspace = new Workspace({
-        name: `${given_name}'s Workspace`,
-        description: 'Default workspace',
+        name: '',
+        description: '',
+        setupCompleted: false,
       });
       await workspace.save();
 
@@ -68,7 +70,7 @@ async function exchangeToken(req, res) {
         googleId,
         isVerified: true,
         workspaceId: workspace._id,
-        role: 'admin',
+        role: 'owner',
       });
 
       await user.save();
@@ -81,7 +83,7 @@ async function exchangeToken(req, res) {
       await new WorkspaceMember({
         workspaceId: workspace._id,
         userId: user._id,
-        role: 'admin',
+        role: 'owner',
       }).save();
     } else {
       // Update existing user with Google ID if not already set
