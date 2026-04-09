@@ -106,17 +106,29 @@ const sendInviteEmail = async ({ to, inviterName, workspaceName, token, boardNam
 
     return result;
   } catch (err) {
+    const errorMessage = err.message || '';
+    const isResendTestingError = errorMessage.includes('testing emails') || 
+                                 errorMessage.includes('verify a domain');
+    
     console.error('[invite-email-error]', {
       to,
-      error: err.message,
+      error: errorMessage,
       code: err.code,
+      isTestingModeError: isResendTestingError,
       fullError: err,
     });
     
-    // In production, log the invite link as fallback
-    if (process.env.NODE_ENV === 'production') {
-      console.log('[invite-link-fallback]', { to, inviteLink: link, workspaceName, inviterName });
-      return { fallback: true, to, link };
+    // For Resend testing mode errors or any email errors, provide fallback with invite link
+    // This allows invites to work even without email service configured
+    if (isResendTestingError || process.env.NODE_ENV === 'production' || process.env.ALLOW_EMAIL_FALLBACK === 'true') {
+      console.log('[invite-link-fallback]', { 
+        to, 
+        inviteLink: link, 
+        workspaceName, 
+        inviterName,
+        reason: isResendTestingError ? 'Resend free tier limitation' : 'Email service error'
+      });
+      return { fallback: true, to, link, inviterName, workspaceName };
     }
     
     throw err;
@@ -351,5 +363,6 @@ module.exports = {
   sendPriorityAlertEmail,
   sendDueDateReminderEmail,
   sendCommentMentionEmail,
-  buildClientUrl 
+  buildClientUrl,
+  buildClientLink
 };

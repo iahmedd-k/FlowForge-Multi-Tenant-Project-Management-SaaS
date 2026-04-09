@@ -6,7 +6,7 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const WorkspaceInvite = require('../models/WorkspaceInvite');
 const WorkspaceMember = require('../models/WorkspaceMember');
-const { sendInviteEmail } = require('../services/email.service');
+const { sendInviteEmail, buildClientLink } = require('../services/email.service');
 const { success, error } = require('../utils/response.util');
 const { getUserWorkspaces, ensureWorkspaceAccess } = require('../services/workspace-member.service');
 const { signAccessToken, signRefreshToken } = require('../utils/jwt.util');
@@ -233,10 +233,17 @@ exports.inviteUser = async (req, res) => {
       boardName: `${workspace.name} dashboard`,
     }).catch((emailErr) => {
       console.error('[email-send-failed]', emailErr.message);
+      // Email failed, but invite is already saved to DB - that's OK
     });
 
     console.log('[invite-step-7] Success!');
-    return success(res, { message: `Invite sent to ${normalizedEmail}`, invite });
+    // Return invite with direct link as fallback (useful for testing with Resend free tier)
+    return success(res, { 
+      message: `Invite sent to ${normalizedEmail}`, 
+      invite,
+      fallbackLink: buildClientLink('/invite/setup', token),
+      note: 'If email delivery is delayed, user can use the fallback link'
+    });
   } catch (err) {
     console.error('[invite-endpoint-error]', {
       email: req.body?.email,
