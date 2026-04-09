@@ -24,38 +24,20 @@ passport.use(
         let user = await User.findOne({ email });
 
         if (!user) {
-          // Create new user if doesn't exist
-          // Create default workspace for new user
-          const workspace = new Workspace({
-            name: `${firstName}'s Workspace`,
-            description: 'Default workspace',
-            owner: null, // Will be set after user creation
-          });
-          await workspace.save();
-
+          // Create new user WITHOUT workspace
+          // Workspace will be created when user submits workspace setup form
+          const fullName = `${firstName || ''} ${lastName || ''}`.trim() || 'User';
           user = new User({
+            name: fullName,
             email,
-            firstName,
-            lastName,
             avatar,
             googleId,
-            isVerified: true, // Google email is verified
-            workspaceId: workspace._id,
-            role: 'admin',
+            isVerified: true,
+            workspaceId: null,
+            role: 'owner',
           });
 
           await user.save();
-
-          // Update workspace owner
-          workspace.owner = user._id;
-          await workspace.save();
-
-          // Add user to workspace members
-          new WorkspaceMember({
-            workspaceId: workspace._id,
-            userId: user._id,
-            role: 'admin',
-          }).save();
         } else {
           // Update existing user with Google ID if not already set
           if (!user.googleId) {

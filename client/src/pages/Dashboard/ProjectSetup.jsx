@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { updateWorkspace } from '../../api/workspace.api';
+import { createWorkspace } from '../../api/workspace.api';
 import { setAuth } from '../../store/authSlice';
 import Button from '../../components/Dashboard Components/ui/Button';
 
@@ -103,17 +103,15 @@ export default function ProjectSetup() {
   const [name, setName] = useState('');
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: updateWorkspace,
+    mutationFn: createWorkspace,
     onSuccess: (response) => {
       const nextWorkspace = response.data.data.workspace;
-      const nextWorkspaces = workspaces.map((entry) =>
-        String(entry.workspace?._id) === String(nextWorkspace._id)
-          ? { ...entry, workspace: nextWorkspace }
-          : entry
-      );
+      const nextWorkspaces = response.data.data.workspaces || [
+        { workspace: nextWorkspace, role: 'owner', membershipId: nextWorkspace._id }
+      ];
 
       dispatch(setAuth({
-        user,
+        user: { ...user, workspaceId: nextWorkspace._id },
         workspace: nextWorkspace,
         workspaces: nextWorkspaces,
       }));
@@ -155,7 +153,6 @@ export default function ProjectSetup() {
               mutate({
                 name: name.trim(),
                 description: '',
-                setupCompleted: false,
               });
             }}
             className="mt-8 max-w-[520px] space-y-5"
