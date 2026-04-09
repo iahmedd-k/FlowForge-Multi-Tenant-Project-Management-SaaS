@@ -31,8 +31,8 @@ app.post(
 
 app.use(helmet());
 app.use(cors({
-  origin: (process.env.CLIENT_URL || '*').replace(/\/$/, ''),
-  credentials: true,
+  origin: '*',
+  credentials: false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
