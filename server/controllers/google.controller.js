@@ -25,12 +25,14 @@ async function exchangeToken(req, res) {
     const { code } = req.body;
 
     if (!code) {
-      return res.status(400).json(error('Authorization code is required', 400));
+      return error(res, 'Authorization code is required', 400);
     }
 
     // The redirect_uri must match what was used when generating the authorization code
     // (i.e., the frontend callback URL, not the backend URL)
-    const redirectUri = `${process.env.CLIENT_URL}/auth/google-callback`;
+    // Remove trailing slash from CLIENT_URL to ensure proper matching
+    const clientUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const redirectUri = `${clientUrl}/auth/google-callback`;
 
     // Exchange code for tokens with Google
     const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
@@ -111,29 +113,27 @@ async function exchangeToken(req, res) {
     // Set refresh token in cookie
     res.cookie('refreshToken', refreshToken, cookieOpts);
 
-    return res.status(200).json(
-      success('Google authentication successful', {
-        accessToken,
-        refreshToken,
-        user: {
-          _id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          avatar: user.avatar,
-          role: user.role,
-        },
-        workspace: activeWorkspace,
-        workspaces,
-      })
-    );
+    return success(res, {
+      accessToken,
+      refreshToken,
+      user: {
+        _id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatar: user.avatar,
+        role: user.role,
+      },
+      workspace: activeWorkspace,
+      workspaces,
+    }, 200);
   } catch (err) {
     console.error('Google token exchange error:', {
       message: err.message,
       response: err.response?.data,
       status: err.response?.status,
     });
-    return res.status(500).json(error('Google authentication failed: ' + err.message, 500));
+    return error(res, 'Google authentication failed: ' + (err.response?.data?.error_description || err.message), 500);
   }
 }
 
@@ -144,7 +144,7 @@ async function exchangeToken(req, res) {
 async function googleAuth(req, res) {
   try {
     if (!req.user) {
-      return res.status(401).json(error('Authentication failed', 401));
+      return error(res, 'Authentication failed', 401);
     }
 
     // Generate tokens
@@ -175,25 +175,23 @@ async function googleAuth(req, res) {
     res.cookie('refreshToken', refreshToken, cookieOpts);
 
     // Return tokens and user data
-    return res.status(200).json(
-      success('Google authentication successful', {
-        accessToken,
-        refreshToken,
-        user: {
-          _id: req.user._id,
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          avatar: req.user.avatar,
-          role: req.user.role,
-        },
-        workspace: activeWorkspace,
-        workspaces,
-      })
-    );
+    return success(res, {
+      accessToken,
+      refreshToken,
+      user: {
+        _id: req.user._id,
+        email: req.user.email,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        avatar: req.user.avatar,
+        role: req.user.role,
+      },
+      workspace: activeWorkspace,
+      workspaces,
+    }, 200);
   } catch (err) {
     console.error('Google auth error:', err);
-    return res.status(500).json(error('Google authentication failed', 500));
+    return error(res, 'Google authentication failed', 500);
   }
 }
 
