@@ -122,6 +122,8 @@ exports.createWorkspace = async (req, res) => {
       },
       workspace,
       workspaces,
+      accessToken,
+      refreshToken,
       message: 'Workspace created.',
     }, 201);
   } catch (err) {
