@@ -152,10 +152,12 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     const normalizedEmail = email?.trim().toLowerCase();
-    if (!normalizedEmail) return error(res, 'Email and password are required', 400);
+    if (!normalizedEmail || !password) return error(res, 'Email and password are required', 400);
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) return error(res, 'Invalid credentials', 401);
+
+    if (!user.passwordHash) return error(res, 'Invalid credentials', 401);
 
     const valid = await user.comparePassword(password);
     if (!valid) return error(res, 'Invalid credentials', 401);

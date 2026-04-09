@@ -316,28 +316,16 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
               {showWorkspaceMenu ? (
                 <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-[190px] rounded-[12px] border border-[#d8deed] bg-white p-2 shadow-[0_16px_36px_rgba(15,23,42,0.14)]">
                   {canManageWorkspace ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          navigate('/settings');
-                        }}
-                        className="flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] text-[#22304b] transition hover:bg-[#f5f8ff]"
-                      >
-                        Edit workspace
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          navigate('/settings');
-                        }}
-                        className="flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] text-[#22304b] transition hover:bg-[#f5f8ff]"
-                      >
-                        Manage workspace
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowWorkspaceMenu(false);
+                        navigate('/settings');
+                      }}
+                      className="flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] text-[#22304b] transition hover:bg-[#f5f8ff]"
+                    >
+                      Manage workspace
+                    </button>
                   ) : null}
                   <button
                     type="button"
@@ -348,7 +336,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
                       }
                     }}
                     disabled={isWorkspaceLimitReached}
-                    title={isWorkspaceLimitReached ? `Workspace limit reached (${workspaceQuota?.used}/${workspaceQuota?.limit})` : ''}
+                    title={isWorkspaceLimitReached ? `Workspace creation limit reached (${workspaceQuota?.used}/${workspaceQuota?.limit}). You can still join invited workspaces.` : ''}
                     className={`flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] transition ${
                       isWorkspaceLimitReached
                         ? 'cursor-not-allowed text-[#ccc] opacity-50'
@@ -356,16 +344,6 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }) {
                     }`}
                   >
                     Create workspace
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowWorkspaceMenu(false);
-                      toggleWorkspaceOptions();
-                    }}
-                    className="flex w-full items-center rounded-[8px] px-3 py-2 text-left text-[13px] text-[#22304b] transition hover:bg-[#f5f8ff]"
-                  >
-                    Switch workspace
                   </button>
                 </div>
               ) : null}

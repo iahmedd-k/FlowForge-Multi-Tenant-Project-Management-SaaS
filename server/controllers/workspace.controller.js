@@ -281,22 +281,7 @@ exports.getInvitations = async (req, res) => {
 // GET /api/workspace/members
 exports.getMembers = async (req, res) => {
   try {
-    let filter = { workspaceId: req.workspaceId };
-
-    if (!isWorkspaceManager(req)) {
-      const accessibleProjectIds = await getAccessibleProjectIds(req);
-      const accessibleMemberIds = await Project.distinct('members', {
-        workspaceId: req.workspaceId,
-        _id: { $in: accessibleProjectIds || [] },
-      });
-
-      filter = {
-        ...filter,
-        userId: { $in: accessibleMemberIds },
-      };
-    }
-
-    const members = await WorkspaceMember.find(filter)
+    const members = await WorkspaceMember.find({ workspaceId: req.workspaceId })
       .populate('userId', 'name email createdAt')
       .sort({ createdAt: 1 });
 

@@ -19,7 +19,6 @@ const ROLE_OPTIONS = [
 function initialRows(canInviteAdmins) {
   return [
     { id: 1, email: '', role: canInviteAdmins ? 'admin' : 'member' },
-    { id: 2, email: '', role: 'member' },
   ];
 }
 
@@ -200,8 +199,8 @@ export default function TeamInvitePage() {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col lg:flex-row bg-white">
-      <div className="flex w-full lg:w-[58%] flex-col bg-white px-6 sm:px-10 lg:px-14 pb-8 pt-10 overflow-y-auto">
+    <div className="fixed inset-0 flex flex-col lg:flex-row bg-white dark:bg-gray-950">
+      <div className="flex w-full lg:w-[58%] flex-col bg-white dark:bg-gray-950 px-6 sm:px-10 lg:px-14 pb-8 pt-10 overflow-y-auto">
         <div className="mb-12 flex items-center gap-2">
           <div className="h-6 w-6">
             <FlowForgeLogo to="/" compact />
@@ -209,9 +208,9 @@ export default function TeamInvitePage() {
         </div>
 
 
-        <h1 className="mb-3 text-[28px] font-bold leading-tight text-gray-900">Who else is on your team?</h1>
-        <p className="mb-7 max-w-[520px] text-[15px] leading-7 text-[#59627b]">
-          Invite teammates into <span className="font-semibold text-[#25314f]">{workspace?.name || 'your workspace'}</span> so they can start collaborating right away.
+        <h1 className="mb-3 text-[28px] font-bold leading-tight text-gray-900 dark:text-white">Who else is on your team?</h1>
+        <p className="mb-7 max-w-[520px] text-[15px] leading-7 text-[#59627b] dark:text-gray-400">
+          Invite teammates into <span className="font-semibold text-[#25314f] dark:text-gray-300">{workspace?.name || 'your workspace'}</span> so they can start collaborating right away.
         </p>
 
         <div className="space-y-3">
@@ -227,12 +226,12 @@ export default function TeamInvitePage() {
                     placeholder="Add email here"
                     value={row.email}
                     onChange={(event) => updateRow(row.id, { email: event.target.value })}
-                    className="h-10 w-full rounded border border-gray-200 px-3 text-sm text-gray-800 outline-none transition focus:border-[#6161FF] focus:ring-1 focus:ring-[#6161FF]/40"
+                    className="h-10 w-full rounded border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition focus:border-[#6161FF] focus:ring-1 focus:ring-[#6161FF]/40 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-[#6161FF]"
                   />
                   {isDuplicate ? (
-                    <p className="mt-1 text-[12px] text-[#c2415d]">This email is added multiple times.</p>
+                    <p className="mt-1 text-[12px] text-[#c2415d] dark:text-red-400">This email is added multiple times.</p>
                   ) : exists ? (
-                    <p className="mt-1 text-[12px] text-[#c2415d]">
+                    <p className="mt-1 text-[12px] text-[#c2415d] dark:text-red-400">
                       {memberEmails.has(normalizedEmail) ? 'This user is already in the workspace.' : 'This email already has a pending invite.'}
                     </p>
                   ) : null}
@@ -241,16 +240,28 @@ export default function TeamInvitePage() {
                   <select
                     value={row.role}
                     onChange={(event) => updateRow(row.id, { role: event.target.value })}
-                    className="h-10 appearance-none rounded border border-gray-200 bg-white pl-3 pr-8 text-sm text-gray-700 outline-none transition focus:border-[#6161FF] focus:ring-1 focus:ring-[#6161FF]/40"
+                    className="h-10 w-full appearance-none rounded border border-gray-200 bg-white pl-3 pr-8 text-sm text-gray-700 outline-none transition focus:border-[#6161FF] focus:ring-2 focus:ring-[#6161FF]/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-[#6161FF]"
                   >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
+                    {allowedRoles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
                   </select>
+                  <svg
+                    className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                    fill="none"
+                    viewBox="0 0 16 16"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l8 8" />
+                  </svg>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-[20px] leading-none text-gray-400 transition hover:bg-gray-50 hover:text-gray-700"
+                  className="flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-[20px] leading-none text-gray-400 transition hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                   aria-label="Remove invite row"
                 >
                   ×
@@ -266,14 +277,14 @@ export default function TeamInvitePage() {
           disabled={isLimitReached}
           className={`mt-4 flex w-fit items-center gap-2 text-sm transition ${
             isLimitReached 
-              ? 'cursor-not-allowed text-gray-300' 
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'cursor-not-allowed text-gray-300 dark:text-gray-600' 
+              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
           <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[15px] font-light leading-none ${
             isLimitReached 
-              ? 'border-gray-300 text-gray-300' 
-              : 'border-gray-400 text-gray-400'
+              ? 'border-gray-300 text-gray-300 dark:border-gray-600 dark:text-gray-600' 
+              : 'border-gray-400 text-gray-400 dark:border-gray-500 dark:text-gray-500'
           }`}>
             +
           </span>
@@ -281,26 +292,26 @@ export default function TeamInvitePage() {
         </button>
 
         {feedback ? (
-          <p className={`mt-5 rounded-lg border px-3 py-2 text-sm ${feedback.toLowerCase().includes('sent') ? 'border-[#cdeedc] bg-[#f4fff8] text-[#16784b]' : 'border-[#f0c8d0] bg-[#fff5f7] text-[#b42318]'}`}>
+          <p className={`mt-5 rounded-lg border px-3 py-2 text-sm ${feedback.toLowerCase().includes('sent') ? 'border-[#cdeedc] bg-[#f4fff8] text-[#16784b] dark:border-[#1e6d42] dark:bg-[#0f3d1f] dark:text-[#6ee7b7]' : 'border-[#f0c8d0] bg-[#fff5f7] text-[#b42318] dark:border-[#7f2929] dark:bg-[#3d1f1f] dark:text-[#f87171]'}`}>
             {feedback}
           </p>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-3 text-[13px] text-[#6d7895]">
+        <div className="mt-6 flex flex-wrap gap-3 text-[13px] text-[#6d7895] dark:text-gray-400">
           <span>{members.length} workspace member{members.length === 1 ? '' : 's'}</span>
           <span>{invitations.filter((invite) => invite.status === 'pending').length} pending invite{invitations.filter((invite) => invite.status === 'pending').length === 1 ? '' : 's'}</span>
         </div>
 
         {invitations.filter((invite) => invite.status === 'pending').length > 0 && (
-          <div className="mt-6 rounded-lg bg-blue-50 p-4">
-            <p className="mb-3 text-sm font-semibold text-gray-800">Pending Invitations</p>
+          <div className="mt-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20 dark:border dark:border-blue-800">
+            <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">Pending Invitations</p>
             <div className="space-y-2">
               {invitations
                 .filter((invite) => invite.status === 'pending')
                 .map((invite) => (
-                  <div key={invite._id} className="flex items-center justify-between rounded bg-white px-3 py-2">
-                    <span className="text-sm text-gray-700">{invite.email}</span>
-                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                  <div key={invite._id} className="flex items-center justify-between rounded bg-white px-3 py-2 dark:bg-gray-900 dark:border dark:border-gray-800">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{invite.email}</span>
+                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
                       Waiting
                     </span>
                   </div>
@@ -315,7 +326,7 @@ export default function TeamInvitePage() {
           <button
             type="button"
             onClick={handleSkip}
-            className="text-sm font-medium text-gray-600 transition hover:text-gray-900"
+            className="text-sm font-medium text-gray-600 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
           >
             Remind me later
           </button>
@@ -326,7 +337,7 @@ export default function TeamInvitePage() {
             className={`h-10 rounded px-6 text-sm font-medium transition ${
               hasAnyEmail && !inviteMutation.isPending && canInviteMembers
                 ? 'bg-[#0073ea] text-white shadow-sm hover:bg-[#0060c0]'
-                : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
             }`}
           >
             {inviteMutation.isPending ? 'Sending...' : 'Invite your team'}
