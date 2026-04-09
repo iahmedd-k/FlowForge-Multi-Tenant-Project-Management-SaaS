@@ -52,9 +52,9 @@ const GoogleCallback = () => {
         // Dispatch auth state
         dispatch(setAuth({ user, workspace: workspace || user?.workspaceId || null, workspaces }));
 
-        // Redirect - show setup for new users (setupCompleted: false)
-        const shouldSetup = workspace && !workspace.setupCompleted;
-        navigate(shouldSetup ? '/workspace/setup' : '/dashboard', { replace: true });
+        // Redirect - show setup for new users (if no workspace or not yet set up)
+        const shouldSkipSetup = workspace?.setupCompleted;
+        navigate(shouldSkipSetup ? '/dashboard' : '/workspace/setup', { replace: true });
       } catch (err: any) {
         console.error('Google auth callback error:', err);
         setError(err.message || 'Failed to authenticate. Please try again.');
