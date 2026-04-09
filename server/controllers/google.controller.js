@@ -28,14 +28,17 @@ async function exchangeToken(req, res) {
       return res.status(400).json(error('Authorization code is required', 400));
     }
 
+    // The redirect_uri must match what was used when generating the authorization code
+    // (i.e., the frontend callback URL, not the backend URL)
+    const redirectUri = `${process.env.CLIENT_URL}/auth/google-callback`;
+
     // Exchange code for tokens with Google
     const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: process.env.GOOGLE_CALLBACK_URL || `${process.env.CLIENT_URL}/auth/google-callback`,
-    });
+      redirect_uri: redirectUri,
 
     const { id_token, access_token } = tokenResponse.data;
 
@@ -124,8 +127,12 @@ async function exchangeToken(req, res) {
       })
     );
   } catch (err) {
-    console.error('Google token exchange error:', err);
-    return res.status(500).json(error('Google authentication failed', 500));
+    console.error('Google token exchange error:', {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+    });
+    return res.status(500).json(error('Google authentication failed: ' + err.message, 500));
   }
 }
 
