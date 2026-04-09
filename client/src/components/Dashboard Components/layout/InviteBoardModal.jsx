@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   cancelInvitation,
   getInvitations,
@@ -47,6 +48,8 @@ export default function InviteBoardModal({ open, onClose }) {
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
+  const [fallbackLinks, setFallbackLinks] = useState([]);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   const { data: members = [] } = useQuery({
     queryKey: ['members'],
@@ -84,7 +87,17 @@ export default function InviteBoardModal({ open, onClose }) {
   const sendInviteMutation = useMutation({
     mutationFn: () => inviteUser({ email: query.trim(), role: inviteRole }),
     onSuccess: (res) => {
-      setFeedback(res.data.data.message);
+      const fallbackLink = res.data.data?.fallbackLink;
+      if (fallbackLink) {
+        // Show modal with fallback link
+        setFallbackLinks([{
+          email: query.trim(),
+          url: fallbackLink,
+        }]);
+        setShowLinkModal(true);
+      } else {
+        setFeedback(res.data.data.message);
+      }
       setQuery('');
       setInviteRole('member');
       qc.invalidateQueries({ queryKey: ['workspace-invitations'] });
@@ -272,6 +285,55 @@ export default function InviteBoardModal({ open, onClose }) {
           </div>
         </div>
       </div>
+
+      {showLinkModal && fallbackLinks.length > 0 && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-auto rounded-lg bg-white p-6">
+            <h2 className="mb-2 text-lg font-bold text-gray-900">Share Invite Link</h2>
+            <p className="mb-4 text-sm text-gray-600">
+              If email delivery is delayed, share this link directly with your teammate:
+            </p>
+            
+            <div className="space-y-3">
+              {fallbackLinks.map((link, idx) => (
+                <div key={idx} className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <p className="mb-2 text-sm font-medium text-gray-700">{link.email}</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={link.url}
+                      className="flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(link.url);
+                        toast.success('Link copied!');
+                      }}
+                      className="rounded bg-[#0073ea] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0060c0]"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowLinkModal(false);
+                setFallbackLinks([]);
+                setFeedback('Invite sent successfully!');
+              }}
+              className="mt-6 w-full rounded bg-[#0073ea] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0060c0]"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
