@@ -120,36 +120,28 @@ exports.register = async (req, res) => {
     }
 
     const userId = new mongoose.Types.ObjectId();
-    const workspaceId = new mongoose.Types.ObjectId();
 
-    const workspace = await Workspace.create({
-      _id: workspaceId,
-      name: `${name}'s Workspace`,
-      description: '',
-      setupCompleted: false,
-      ownerId: userId,
-    });
-
+    // Create user WITHOUT workspace
+    // Workspace will be created when user submits workspace setup form
     const user = await User.create({
       _id: userId,
       name,
       email: normalizedEmail,
       passwordHash: password,
-      workspaceId,
+      workspaceId: null,
       role: 'owner',
     });
 
-    await WorkspaceMember.create({
-      workspaceId,
-      userId,
+    const accessToken = signAccessToken({
+      userId: user._id,
+      workspaceId: null,
       role: 'owner',
     });
+    const refreshToken = signRefreshToken({
+      userId: user._id,
+    });
 
-    const authState = await buildAuthPayload(user, workspaceId);
-    const accessToken = signAccessToken(authState.tokenPayload);
-    const refreshToken = signRefreshToken(authState.tokenPayload);
-
-    return success(res, { user: authState.user, workspace: authState.workspace, workspaces: authState.workspaces, accessToken, refreshToken }, 201);
+    return success(res, { user, workspace: null, workspaces: [], accessToken, refreshToken }, 201);
   } catch (err) {
     return error(res, err.message, 500);
   }
