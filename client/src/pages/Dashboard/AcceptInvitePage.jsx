@@ -38,7 +38,7 @@ export default function AcceptInvitePage() {
     retry: false,
   });
 
-  const needsPassword = !data?.hasPassword;
+  const needsPassword = data?.hasPassword || !data?.existingUser;
   const schema = needsPassword ? schemaWithPassword : schemaWithoutPassword;
 
   const {
