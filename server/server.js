@@ -53,7 +53,12 @@ app.use(passport.initialize());
 // during the client's session before they attempt to login/signup
 // ============================================================================
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    memoryUsageMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+  });
 });
 // END OF HEALTH CHECK ENDPOINT
 // ============================================================================
